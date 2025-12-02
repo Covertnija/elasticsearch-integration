@@ -18,8 +18,6 @@ final class Configuration implements ConfigurationInterface
 {
     /**
      * Generate the configuration tree builder.
-     *
-     * @return TreeBuilder The configuration tree builder
      */
     public function getConfigTreeBuilder(): TreeBuilder
     {
@@ -48,19 +46,6 @@ final class Configuration implements ConfigurationInterface
                     ->info('Additional Elasticsearch client options')
                     ->normalizeKeys(false)
                     ->variablePrototype()
-                    ->end()
-                ->end()
-                ->arrayNode('logging')
-                    ->addDefaultsIfNotSet()
-                    ->children()
-                        ->booleanNode('enabled')
-                            ->defaultTrue()
-                            ->info('Enable logging for Elasticsearch operations')
-                        ->end()
-                        ->scalarNode('level')
-                            ->defaultValue('info')
-                            ->info('Log level for Elasticsearch operations')
-                        ->end()
                     ->end()
                 ->end()
             ->end()

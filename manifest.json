@@ -30,7 +30,7 @@
         "    <comment>public function __construct(private \\Elastic\\Elasticsearch\\Client $elasticsearch) {}</>",
         "",
         "  * <fg=green>Read</> the documentation:",
-        "    <comment>https://github.com/your-org/elasticsearch-integration/blob/main/README.md</>",
+        "    <comment>https://github.com/Covertnija/elasticsearch-integration/blob/main/README.md</>",
         "",
         "<fg=green>Need help?</> Check the README or create an issue on GitHub."
     ]

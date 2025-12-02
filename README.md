@@ -1,14 +1,14 @@
 # EV Elasticsearch Integration
 
-A Symfony bundle providing Elasticsearch integration with round-robin load balancing and comprehensive logging support.
+A Symfony bundle providing an Elasticsearch client with multi-host support and load balancing.
 
 ## Features
 
-- **Round-robin load balancing** across multiple Elasticsearch hosts
+- **Multi-host support** with automatic load balancing across Elasticsearch nodes
 - **Symfony Bundle integration** with autoconfiguration
 - **Flexible configuration** via Dependency Injection container
 - **Production-ready** with comprehensive tests
-- **Monolog integration** for structured logging
+- **Monolog integration** for logging Elasticsearch operations
 - **PSR-12 compliant** code with strict typing
 
 ## Requirements
@@ -65,11 +65,8 @@ elasticsearch_integration:
         - 'http://localhost:9202'
     api_key: '%env(ELASTICSEARCH_API_KEY)%'
     client_options:
-        timeout: 30
-        connectTimeout: 5
-    logging:
-        enabled: true
-        level: 'info'
+        retries: 3
+        sslVerification: true
 ```
 
 ### Environment Variables
@@ -159,7 +156,6 @@ services:
 ### Core Components
 
 - **ElasticsearchRoundRobinClientFactory**: Factory for creating Elasticsearch clients with multiple hosts
-- **RoundRobinHttpClient**: Custom HTTP client implementing round-robin across multiple hosts (for custom integrations)
 - **ElasticsearchExtension**: Symfony DI extension for configuration and service registration
 - **Configuration**: Configuration schema definition
 
@@ -171,8 +167,6 @@ The Elasticsearch PHP client (v9.2+) natively handles load balancing when multip
 2. Failed requests are retried with alternative hosts
 3. Comprehensive logging tracks operations and failures
 4. Built-in fault tolerance ensures service continuity
-
-**Note**: The `RoundRobinHttpClient` is included for custom HTTP integrations but is not used by the main Elasticsearch client, which has its own internal load balancing mechanism.
 
 ## Testing
 
@@ -224,22 +218,18 @@ elasticsearch_integration:
     api_key: null
     
     # Additional client options passed to Elasticsearch\ClientBuilder
+    # Supported: retries, sslVerification, elasticCloudId
     client_options:
-        timeout: 30
-        connectTimeout: 5
-        retryOnConflict: 3
-    
-    # Logging configuration
-    logging:
-        enabled: true
-        level: 'info'  # debug, info, warning, error
+        retries: 3
+        sslVerification: true
 ```
 
 ### Available Services
 
-- `elasticsearch.client` - Main Elasticsearch client
+- `elasticsearch.client` - Main Elasticsearch client (public alias)
+- `Elastic\Elasticsearch\Client` - Type-hinted autowiring
 - `ElasticsearchIntegration\Factory\ElasticsearchRoundRobinClientFactory` - Client factory
-- `ElasticsearchIntegration\HttpClient\RoundRobinHttpClient` - Round-robin HTTP client
+- `ElasticsearchIntegration\Factory\ElasticsearchClientFactoryInterface` - Factory interface for testing
 
 ## Performance Considerations
 

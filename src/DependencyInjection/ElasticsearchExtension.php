@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace ElasticsearchIntegration\DependencyInjection;
 
 use Elastic\Elasticsearch\Client;
+use ElasticsearchIntegration\Factory\ElasticsearchClientFactoryInterface;
 use ElasticsearchIntegration\Factory\ElasticsearchRoundRobinClientFactory;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -34,7 +35,7 @@ final class ElasticsearchExtension extends Extension
         $configuration = new Configuration();
         $config = $this->processConfiguration($configuration, $configs);
 
-        /** @var array{enabled: bool, hosts: array<string>, api_key: string|null, client_options: array<string, mixed>, logging: array{enabled: bool, level: string}} $config */
+        /** @var array{enabled: bool, hosts: array<string>, api_key: string|null, client_options: array<string, mixed>} $config */
         if (! $config['enabled']) {
             return;
         }
@@ -48,7 +49,7 @@ final class ElasticsearchExtension extends Extension
      * Register the Elasticsearch client factory service.
      *
      * @param ContainerBuilder $container The container builder
-     * @param array{enabled: bool, hosts: array<string>, api_key: string|null, client_options: array<string, mixed>, logging: array{enabled: bool, level: string}} $config The processed configuration
+     * @param array{enabled: bool, hosts: array<string>, api_key: string|null, client_options: array<string, mixed>} $config The processed configuration
      */
     private function registerClientFactory(ContainerBuilder $container, array $config): void
     {
@@ -67,13 +68,18 @@ final class ElasticsearchExtension extends Extension
             ElasticsearchRoundRobinClientFactory::class,
             'elasticsearch_integration.client_factory',
         )->setPublic(false);
+
+        $container->setAlias(
+            ElasticsearchClientFactoryInterface::class,
+            'elasticsearch_integration.client_factory',
+        )->setPublic(false);
     }
 
     /**
      * Register the Elasticsearch client service.
      *
      * @param ContainerBuilder $container The container builder
-     * @param array{enabled: bool, hosts: array<string>, api_key: string|null, client_options: array<string, mixed>, logging: array{enabled: bool, level: string}} $config The processed configuration
+     * @param array{enabled: bool, hosts: array<string>, api_key: string|null, client_options: array<string, mixed>} $config The processed configuration
      */
     private function registerElasticsearchClient(ContainerBuilder $container, array $config): void
     {
@@ -109,7 +115,7 @@ final class ElasticsearchExtension extends Extension
      * Register configuration parameters.
      *
      * @param ContainerBuilder $container The container builder
-     * @param array{enabled: bool, hosts: array<string>, api_key: string|null, client_options: array<string, mixed>, logging: array{enabled: bool, level: string}} $config The processed configuration
+     * @param array{enabled: bool, hosts: array<string>, api_key: string|null, client_options: array<string, mixed>} $config The processed configuration
      */
     private function registerParameters(ContainerBuilder $container, array $config): void
     {
@@ -117,8 +123,6 @@ final class ElasticsearchExtension extends Extension
         $container->setParameter('elasticsearch_integration.hosts', $config['hosts']);
         $container->setParameter('elasticsearch_integration.api_key', $config['api_key']);
         $container->setParameter('elasticsearch_integration.client_options', $config['client_options']);
-        $container->setParameter('elasticsearch_integration.logging.enabled', $config['logging']['enabled']);
-        $container->setParameter('elasticsearch_integration.logging.level', $config['logging']['level']);
     }
 
     /**

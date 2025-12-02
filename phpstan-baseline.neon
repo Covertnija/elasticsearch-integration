@@ -1,3 +1,11 @@
 parameters:
     # This file will be auto-generated if you run: composer phpstan -- --generate-baseline
     # It allows you to ignore existing errors while ensuring no new errors are introduced
+    ignoreErrors:
+        # Symfony TreeBuilder generic types are not fully specified in stubs
+        -
+            message: '#Method .+::getConfigTreeBuilder\(\) return type with generic class Symfony\\Component\\Config\\Definition\\Builder\\TreeBuilder does not specify its types#'
+            path: src/DependencyInjection/Configuration.php
+        -
+            message: '#Call to method .+Node\(\) on an unknown class Symfony\\Component\\Config\\Definition\\Builder\\NodeBuilder#'
+            path: src/DependencyInjection/Configuration.php

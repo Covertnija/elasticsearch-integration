@@ -21,3 +21,4 @@ services:
 
     # Service aliases for convenience
     Elastic\Elasticsearch\Client: '@elasticsearch.client'
+    ElasticsearchIntegration\Factory\ElasticsearchClientFactoryInterface: '@ElasticsearchIntegration\Factory\ElasticsearchRoundRobinClientFactory'

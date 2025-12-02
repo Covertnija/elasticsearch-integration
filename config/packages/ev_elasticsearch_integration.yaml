@@ -9,12 +9,7 @@ elasticsearch_integration:
     api_key: '%env(default::ELASTICSEARCH_API_KEY)%'
     
     # Additional Elasticsearch client options
+    # Supported: retries, sslVerification, elasticCloudId
     client_options:
-        # timeout: 30
-        # connectTimeout: 5
-        # retryOnConflict: 3
-    
-    # Logging configuration
-    logging:
-        enabled: true
-        level: 'info'  # debug, info, warning, error
+        # retries: 3
+        # sslVerification: true
