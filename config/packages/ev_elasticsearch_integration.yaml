@@ -1,0 +1,20 @@
+ev_elasticsearch_integration:
+    # Enable or disable Elasticsearch integration
+    enabled: '%env(bool:ELASTICSEARCH_ENABLED)%'
+    
+    # Array of Elasticsearch host URLs (comma-separated in env)
+    hosts: '%env(csv:ELASTICSEARCH_HOSTS)%'
+    
+    # Elasticsearch API key for authentication
+    api_key: '%env(default::ELASTICSEARCH_API_KEY)%'
+    
+    # Additional Elasticsearch client options
+    client_options:
+        # timeout: 30
+        # connectTimeout: 5
+        # retryOnConflict: 3
+    
+    # Logging configuration
+    logging:
+        enabled: true
+        level: 'info'  # debug, info, warning, error

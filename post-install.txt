@@ -1,0 +1,20 @@
+<bg=blue;fg=white>                                         </>
+<bg=blue;fg=white>  Elasticsearch Integration Installed!   </>
+<bg=blue;fg=white>                                         </>
+
+<fg=green>What's next?</>
+
+  * <fg=green>Configure</> your Elasticsearch hosts in <comment>.env</>:
+    <comment>ELASTICSEARCH_ENABLED=true</>
+    <comment>ELASTICSEARCH_HOSTS=http://localhost:9200,http://localhost:9201</>
+    <comment>ELASTICSEARCH_API_KEY=your_api_key_here</>
+
+  * <fg=green>Customize</> the configuration in <comment>config/packages/ev_elasticsearch_integration.yaml</>
+
+  * <fg=green>Inject</> the Elasticsearch client in your services:
+    <comment>public function __construct(private \Elasticsearch\Client $elasticsearch) {}</>
+
+  * <fg=green>Read</> the documentation:
+    <comment>https://github.com/your-org/elasticsearch-integration/blob/main/README.md</>
+
+<fg=green>Need help?</> Check the README or create an issue on GitHub.

@@ -1,0 +1,40 @@
+### Composer ###
+/vendor/
+composer.phar
+
+### PHPUnit ###
+.phpunit.result.cache
+.phpunit/
+
+### PHP CS Fixer ###
+.php-cs-fixer.cache
+
+### IDE ###
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+### OS ###
+.DS_Store
+Thumbs.db
+
+### Logs ###
+/logs/
+*.log
+
+### Cache ###
+/cache/
+
+### Environment ###
+.env
+.env.local
+.env.*.local
+
+### Coverage ###
+coverage/
+clover.xml
+
+### Docker ###
+docker/
