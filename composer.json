@@ -1,6 +1,6 @@
 {
     "name": "covertnija/elasticsearch-integration",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "description": "Symfony bundle for Elasticsearch integration with round-robin load balancing",
     "type": "symfony-bundle",
     "license": "MIT",
