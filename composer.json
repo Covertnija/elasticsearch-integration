@@ -1,5 +1,5 @@
 {
-    "name": "ev/elasticsearch-integration",
+    "name": "evit/elasticsearch-integration",
     "description": "Symfony bundle for Elasticsearch integration with round-robin load balancing",
     "type": "symfony-bundle",
     "license": "MIT",
