@@ -5,19 +5,19 @@ services:
         autoconfigure: true
 
     # Elasticsearch Round Robin Client Factory
-    EV\ElasticsearchIntegration\Factory\ElasticsearchRoundRobinClientFactory:
+    ElasticsearchIntegration\Factory\ElasticsearchRoundRobinClientFactory:
         arguments:
             $logger: '@?logger'
         tags:
             - { name: 'monolog.logger', channel: 'elasticsearch' }
 
     # Elasticsearch Round Robin HTTP Client
-    EV\ElasticsearchIntegration\HttpClient\RoundRobinHttpClient:
+    ElasticsearchIntegration\HttpClient\RoundRobinHttpClient:
         arguments:
-            $hosts: '%ev_elasticsearch_integration.hosts%'
+            $hosts: '%elasticsearch_integration.hosts%'
             $logger: '@?logger'
         tags:
             - { name: 'monolog.logger', channel: 'elasticsearch' }
 
     # Service aliases for convenience
-    Elasticsearch\Client: '@elasticsearch.client'
+    Elastic\Elasticsearch\Client: '@elasticsearch.client'

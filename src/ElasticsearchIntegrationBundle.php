@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace EV\ElasticsearchIntegration;
+namespace ElasticsearchIntegration;
 
 use Symfony\Component\HttpKernel\Bundle\Bundle;
 

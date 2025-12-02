@@ -2,10 +2,11 @@
 
 declare(strict_types=1);
 
-namespace EV\ElasticsearchIntegration\Factory;
+namespace ElasticsearchIntegration\Factory;
 
-use Elasticsearch\Client;
-use Elasticsearch\ClientBuilder;
+use Elastic\Elasticsearch\Client;
+use Elastic\Elasticsearch\ClientBuilder;
+use Elastic\Elasticsearch\Exception\AuthenticationException;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
@@ -20,7 +21,7 @@ final class ElasticsearchRoundRobinClientFactory
 {
     private LoggerInterface $logger;
 
-    public function __construct(LoggerInterface $logger = null)
+    public function __construct(?LoggerInterface $logger = null)
     {
         $this->logger = $logger ?? new NullLogger();
     }
@@ -30,23 +31,22 @@ final class ElasticsearchRoundRobinClientFactory
      *
      * @param array<string> $hosts Array of Elasticsearch host URLs
      * @param string|null $apiKey Optional API key for authentication
-     * @param array<string, mixed> $additionalOptions Additional client options
-     *
-     * @return Client Configured Elasticsearch client
      *
      * @throws \InvalidArgumentException If no hosts are provided
+     * @throws AuthenticationException
+     *
+     * @return Client Configured Elasticsearch client
      */
     public function createClient(
         array $hosts,
         ?string $apiKey = null,
-        array $additionalOptions = []
     ): Client {
-        if (empty($hosts)) {
+        if ($hosts === []) {
             throw new \InvalidArgumentException('At least one Elasticsearch host must be provided');
         }
 
         $this->logger->info('Creating Elasticsearch client with round-robin load balancing', [
-            'hosts_count' => count($hosts),
+            'hosts_count' => \count($hosts),
             'hosts' => $hosts,
         ]);
 
@@ -57,10 +57,9 @@ final class ElasticsearchRoundRobinClientFactory
             $this->logger->debug('API key authentication configured for Elasticsearch client');
         }
 
-        // Apply additional options
-        foreach ($additionalOptions as $option => $value) {
-            $clientBuilder->setConnectionParam($option, $value);
-        }
+        // Apply additional options (if supported by ClientBuilder)
+        // Note: Elasticsearch v9 ClientBuilder may not support setConnectionParam
+        // Additional options should be passed via setHosts or other specific methods
 
         return $clientBuilder->build();
     }

@@ -25,12 +25,12 @@ A Symfony bundle providing Elasticsearch integration with round-robin load balan
 Install the bundle using Composer. Flex will automatically configure everything:
 
 ```bash
-composer require ev/elasticsearch-integration
+composer require covertnija/elasticsearch-integration
 ```
 
 **That's it!** Symfony Flex will automatically:
 - ✅ Register the bundle in `config/bundles.php`
-- ✅ Create the configuration file `config/packages/ev_elasticsearch_integration.yaml`
+- ✅ Create the configuration file `config/packages/elasticsearch_integration.yaml`
 - ✅ Add environment variables to `.env`
 
 ### Without Symfony Flex (Manual Installation)
@@ -38,7 +38,7 @@ composer require ev/elasticsearch-integration
 If you're not using Flex, install via Composer:
 
 ```bash
-composer require ev/elasticsearch-integration
+composer require covertnija/elasticsearch-integration
 ```
 
 Then manually add the bundle to your `config/bundles.php`:
@@ -46,18 +46,18 @@ Then manually add the bundle to your `config/bundles.php`:
 ```php
 return [
     // ...
-    EV\ElasticsearchIntegration\ElasticsearchIntegrationBundle::class => ['all' => true],
+    ElasticsearchIntegration\ElasticsearchIntegrationBundle::class => ['all' => true],
 ];
 ```
 
-And create a configuration file `config/packages/ev_elasticsearch_integration.yaml`:
+And create a configuration file `config/packages/elasticsearch_integration.yaml`:
 
 ## Configuration
 
 ### Basic Configuration (Auto-created by Flex)
 
 ```yaml
-ev_elasticsearch_integration:
+elasticsearch_integration:
     enabled: true
     hosts:
         - 'http://localhost:9200'
@@ -95,7 +95,7 @@ ELASTICSEARCH_INDEX=app_logs
 The Elasticsearch client is available as a service:
 
 ```php
-use Elasticsearch\Client;
+use Elastic\Elasticsearch\Client;
 
 class MyService
 {
@@ -115,7 +115,7 @@ class MyService
 You can also use the factory directly for more control:
 
 ```php
-use EV\ElasticsearchIntegration\Factory\ElasticsearchRoundRobinClientFactory;
+use ElasticsearchIntegration\Factory\ElasticsearchRoundRobinClientFactory;
 
 class MyService
 {
@@ -127,8 +127,7 @@ class MyService
     {
         return $this->factory->createClient(
             ['http://custom-host:9200'],
-            'custom-api-key',
-            ['timeout' => 60]
+            'custom-api-key'
         );
     }
 }
@@ -183,6 +182,12 @@ Run the test suite:
 composer test
 ```
 
+Run static analysis with PHPStan (level 9):
+
+```bash
+composer phpstan
+```
+
 Run code style checks:
 
 ```bash
@@ -195,12 +200,18 @@ Fix code style issues:
 composer cs-fix
 ```
 
+Run all quality checks at once:
+
+```bash
+composer check
+```
+
 ## Configuration Reference
 
 ### Full Configuration Options
 
 ```yaml
-ev_elasticsearch_integration:
+elasticsearch_integration:
     # Enable/disable the integration
     enabled: true
     
@@ -227,8 +238,8 @@ ev_elasticsearch_integration:
 ### Available Services
 
 - `elasticsearch.client` - Main Elasticsearch client
-- `EV\ElasticsearchIntegration\Factory\ElasticsearchRoundRobinClientFactory` - Client factory
-- `EV\ElasticsearchIntegration\HttpClient\RoundRobinHttpClient` - Round-robin HTTP client
+- `ElasticsearchIntegration\Factory\ElasticsearchRoundRobinClientFactory` - Client factory
+- `ElasticsearchIntegration\HttpClient\RoundRobinHttpClient` - Round-robin HTTP client
 
 ## Performance Considerations
 

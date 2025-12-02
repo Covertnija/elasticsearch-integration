@@ -1,0 +1,46 @@
+includes:
+    - vendor/phpstan/phpstan-symfony/extension.neon
+    - vendor/phpstan/phpstan-phpunit/extension.neon
+    - vendor/phpstan/phpstan-strict-rules/rules.neon
+
+parameters:
+    level: 9
+    
+    paths:
+        - src
+        - tests
+    
+    # Symfony-specific configuration (disabled for standalone package)
+    # symfony:
+    #     container_xml_path: var/cache/dev/ElasticsearchIntegration_ElasticsearchIntegrationBundle_DevDebugContainer.xml
+    #     console_application_loader: tests/console-application.php
+    
+    # Ignore specific errors if needed (start with none, add only if necessary)
+    ignoreErrors: []
+    
+    # Check for missing type hints
+    checkMissingIterableValueType: true
+    checkGenericClassInNonGenericObjectType: true
+    
+    # Report unmatched ignored errors
+    reportUnmatchedIgnoredErrors: true
+    
+    # Treat PHP doc types as native
+    treatPhpDocTypesAsCertain: true
+    
+    # Exclude patterns
+    excludePaths:
+        - tests/bootstrap.php
+        - vendor/
+    
+    # Bleeding edge features (optional, for strictest analysis)
+    # polluteScopeWithLoopInitialAssignments: false
+    # polluteScopeWithAlwaysIterableForeach: false
+    # checkAlwaysTrueCheckTypeFunctionCall: true
+    # checkAlwaysTrueInstanceof: true
+    # checkAlwaysTrueStrictComparison: true
+    # checkExplicitMixedMissingReturn: true
+    # checkFunctionNameCase: true
+    # checkInternalClassCaseSensitivity: true
+    # reportMaybesInMethodSignatures: true
+    # reportStaticMethodSignatures: true

@@ -1,6 +1,6 @@
 {
     "name": "covertnija/elasticsearch-integration",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "description": "Symfony bundle for Elasticsearch integration with round-robin load balancing",
     "type": "symfony-bundle",
     "license": "MIT",
@@ -21,25 +21,35 @@
         "symfony/http-kernel": "^6.4"
     },
     "require-dev": {
-      "roave/security-advisories": "dev-latest",
-      "friendsofphp/php-cs-fixer": "^3.0",
+        "friendsofphp/php-cs-fixer": "^3.0",
+        "phpstan/phpstan": "^1.10",
+        "phpstan/phpstan-symfony": "^1.3",
+        "phpstan/phpstan-phpunit": "^1.3",
+        "phpstan/phpstan-strict-rules": "^1.5",
         "phpunit/phpunit": "^10.0",
+        "roave/security-advisories": "dev-latest",
         "symfony/phpunit-bridge": "^6.4"
     },
     "autoload": {
         "psr-4": {
-            "EV\\ElasticsearchIntegration\\": "src/"
+            "ElasticsearchIntegration\\": "src/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "EV\\ElasticsearchIntegration\\Tests\\": "tests/"
+            "ElasticsearchIntegration\\Tests\\": "tests/"
         }
     },
     "scripts": {
         "test": "phpunit",
+        "phpstan": "phpstan analyse --memory-limit=1G",
         "cs-check": "php-cs-fixer fix --dry-run --diff",
-        "cs-fix": "php-cs-fixer fix"
+        "cs-fix": "php-cs-fixer fix",
+        "check": [
+            "@test",
+            "@phpstan",
+            "@cs-check"
+        ]
     },
     "extra": {
         "symfony": {

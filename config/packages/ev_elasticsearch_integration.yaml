@@ -1,4 +1,4 @@
-ev_elasticsearch_integration:
+elasticsearch_integration:
     # Enable or disable Elasticsearch integration
     enabled: '%env(bool:ELASTICSEARCH_ENABLED)%'
     

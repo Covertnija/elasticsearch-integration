@@ -1,0 +1,3 @@
+parameters:
+    # This file will be auto-generated if you run: composer phpstan -- --generate-baseline
+    # It allows you to ignore existing errors while ensuring no new errors are introduced

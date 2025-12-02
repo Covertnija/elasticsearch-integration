@@ -4,10 +4,15 @@ composer.phar
 
 ### PHPUnit ###
 .phpunit.result.cache
+.phpunit.cache/
 .phpunit/
 
 ### PHP CS Fixer ###
 .php-cs-fixer.cache
+
+### PHPStan ###
+.phpstan/
+phpstan.neon.dist
 
 ### IDE ###
 .idea/

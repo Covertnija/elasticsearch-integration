@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace EV\ElasticsearchIntegration\DependencyInjection;
+namespace ElasticsearchIntegration\DependencyInjection;
 
 use Symfony\Component\Config\Definition\Builder\TreeBuilder;
 use Symfony\Component\Config\Definition\ConfigurationInterface;
@@ -23,7 +23,7 @@ final class Configuration implements ConfigurationInterface
      */
     public function getConfigTreeBuilder(): TreeBuilder
     {
-        $treeBuilder = new TreeBuilder('ev_elasticsearch_integration');
+        $treeBuilder = new TreeBuilder('elasticsearch_integration');
         $rootNode = $treeBuilder->getRootNode();
 
         $rootNode

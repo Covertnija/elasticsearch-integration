@@ -2,14 +2,15 @@
 
 declare(strict_types=1);
 
-namespace EV\ElasticsearchIntegration\HttpClient;
+namespace ElasticsearchIntegration\HttpClient;
 
+use Psr\Http\Client\ClientExceptionInterface;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
-use Symfony\Component\HttpClient\Psr18Client;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
+use Symfony\Component\HttpClient\Psr18Client;
 
 /**
  * HTTP client implementing round-robin load balancing across multiple hosts.
@@ -39,9 +40,9 @@ final class RoundRobinHttpClient implements ClientInterface
      *
      * @throws \InvalidArgumentException If no hosts are provided
      */
-    public function __construct(array $hosts, LoggerInterface $logger = null)
+    public function __construct(array $hosts, ?LoggerInterface $logger = null)
     {
-        if (empty($hosts)) {
+        if ($hosts === []) {
             throw new \InvalidArgumentException('At least one host must be provided');
         }
 
@@ -50,7 +51,7 @@ final class RoundRobinHttpClient implements ClientInterface
         $this->initializeClients();
 
         $this->logger->debug('RoundRobinHttpClient initialized', [
-            'hosts_count' => count($hosts),
+            'hosts_count' => \count($hosts),
             'hosts' => $hosts,
         ]);
     }
@@ -63,9 +64,9 @@ final class RoundRobinHttpClient implements ClientInterface
      *
      * @param RequestInterface $request The HTTP request to send
      *
-     * @return ResponseInterface The HTTP response
+     * @throws ClientExceptionInterface If all hosts fail
      *
-     * @throws \Psr\Http\Client\ClientExceptionInterface If all hosts fail
+     * @return ResponseInterface The HTTP response
      */
     public function sendRequest(RequestInterface $request): ResponseInterface
     {
@@ -73,7 +74,7 @@ final class RoundRobinHttpClient implements ClientInterface
         $attemptedHosts = [];
 
         // Try each host in the rotation until one succeeds
-        for ($i = 0; $i < count($this->hosts); $i++) {
+        for ($i = 0, $iMax = \count($this->hosts); $i < $iMax; ++$i) {
             $hostIndex = $this->getNextHostIndex();
             $host = $this->hosts[$hostIndex];
             $attemptedHosts[] = $host;
@@ -108,7 +109,7 @@ final class RoundRobinHttpClient implements ClientInterface
         // All hosts failed
         $this->logger->error('All hosts failed for request', [
             'attempted_hosts' => $attemptedHosts,
-            'error_count' => count($exceptions),
+            'error_count' => \count($exceptions),
         ]);
 
         throw $exceptions[0]; // Throw the first exception
@@ -122,7 +123,7 @@ final class RoundRobinHttpClient implements ClientInterface
     private function getNextHostIndex(): int
     {
         $index = $this->currentHostIndex;
-        $this->currentHostIndex = ($this->currentHostIndex + 1) % count($this->hosts);
+        $this->currentHostIndex = ($this->currentHostIndex + 1) % \count($this->hosts);
 
         return $index;
     }
