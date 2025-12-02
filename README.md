@@ -1,4 +1,4 @@
-# EV Elasticsearch Integration
+# Elasticsearch Integration
 
 A Symfony bundle providing an Elasticsearch client with multi-host support and load balancing.
 
