@@ -46,7 +46,7 @@ Then manually add the bundle to your `config/bundles.php`:
 ```php
 return [
     // ...
-    ElasticsearchIntegration\ElasticsearchIntegrationBundle::class => ['all' => true],
+    ElasticsearchIntegration\ElasticsearchIntegrationBundle::class => ['prod' => true],
 ];
 ```
 
