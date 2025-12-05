@@ -74,12 +74,14 @@ final class ElasticsearchExtensionTest extends TestCase
             'enabled' => true,
             'hosts' => ['http://es1:9200', 'http://es2:9200'],
             'api_key' => 'test-key',
+            'index' => 'test-index',
             'client_options' => ['retries' => 3],
         ]], $this->container);
 
         self::assertTrue($this->container->getParameter('elasticsearch_integration.enabled'));
         self::assertSame(['http://es1:9200', 'http://es2:9200'], $this->container->getParameter('elasticsearch_integration.hosts'));
         self::assertSame('test-key', $this->container->getParameter('elasticsearch_integration.api_key'));
+        self::assertSame('test-index', $this->container->getParameter('elasticsearch_integration.index'));
         self::assertSame(['retries' => 3], $this->container->getParameter('elasticsearch_integration.client_options'));
     }
 
@@ -178,6 +180,7 @@ final class ElasticsearchExtensionTest extends TestCase
         self::assertTrue($this->container->getParameter('elasticsearch_integration.enabled'));
         self::assertSame(['http://localhost:9200'], $this->container->getParameter('elasticsearch_integration.hosts'));
         self::assertNull($this->container->getParameter('elasticsearch_integration.api_key'));
+        self::assertSame('app-logs', $this->container->getParameter('elasticsearch_integration.index'));
         self::assertSame([], $this->container->getParameter('elasticsearch_integration.client_options'));
     }
 }

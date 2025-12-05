@@ -10,7 +10,8 @@
     "env": {
         "ELASTICSEARCH_ENABLED": "true",
         "ELASTICSEARCH_HOSTS": "http://localhost:9200",
-        "ELASTICSEARCH_API_KEY": ""
+        "ELASTICSEARCH_API_KEY": "",
+        "ELASTICSEARCH_INDEX": "app-logs"
     },
     "post-install-output": [
         "<bg=blue;fg=white>                                         </>",
@@ -23,6 +24,7 @@
         "    <comment>ELASTICSEARCH_ENABLED=true</>",
         "    <comment>ELASTICSEARCH_HOSTS=http://localhost:9200,http://localhost:9201</>",
         "    <comment>ELASTICSEARCH_API_KEY=your_api_key_here</>",
+        "    <comment>ELASTICSEARCH_INDEX=your-index-name</>",
         "",
         "  * <fg=green>Customize</> the configuration in <comment>config/packages/elasticsearch_integration.yaml</>",
         "",

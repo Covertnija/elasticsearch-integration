@@ -37,6 +37,7 @@ final class ConfigurationTest extends TestCase
         self::assertTrue($config['enabled']);
         self::assertSame(['http://localhost:9200'], $config['hosts']);
         self::assertNull($config['api_key']);
+        self::assertSame('app-logs', $config['index']);
         self::assertSame([], $config['client_options']);
     }
 
@@ -51,6 +52,7 @@ final class ConfigurationTest extends TestCase
                 'enabled' => false,
                 'hosts' => ['http://es1:9200', 'http://es2:9200'],
                 'api_key' => 'test-api-key',
+                'index' => 'custom-index',
                 'client_options' => [
                     'retries' => 3,
                     'sslVerification' => false,
@@ -61,6 +63,7 @@ final class ConfigurationTest extends TestCase
         self::assertFalse($config['enabled']);
         self::assertSame(['http://es1:9200', 'http://es2:9200'], $config['hosts']);
         self::assertSame('test-api-key', $config['api_key']);
+        self::assertSame('custom-index', $config['index']);
         self::assertSame(['retries' => 3, 'sslVerification' => false], $config['client_options']);
     }
 
