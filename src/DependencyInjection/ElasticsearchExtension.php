@@ -7,6 +7,7 @@ namespace ElasticsearchIntegration\DependencyInjection;
 use Elastic\Elasticsearch\Client;
 use ElasticsearchIntegration\Factory\ElasticsearchClientFactoryInterface;
 use ElasticsearchIntegration\Factory\ElasticsearchRoundRobinClientFactory;
+use InvalidArgumentException;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\DependencyInjection\Definition;
@@ -28,7 +29,7 @@ final class ElasticsearchExtension extends Extension
      * @param array<mixed> $configs The configuration arrays
      * @param ContainerBuilder $container The container builder
      *
-     * @throws \InvalidArgumentException If configuration is invalid
+     * @throws InvalidArgumentException If configuration is invalid
      */
     public function load(array $configs, ContainerBuilder $container): void
     {
