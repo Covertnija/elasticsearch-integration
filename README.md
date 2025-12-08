@@ -58,9 +58,10 @@ And create a configuration file `config/packages/elasticsearch_integration.yaml`
 
 ```yaml
 elasticsearch_integration:
-    enabled: true
+    enabled: '%env(bool:ELASTICSEARCH_ENABLED)%'
     hosts: '%env(csv:ELASTICSEARCH_HOSTS)%'
-    api_key: '%env(ELASTICSEARCH_API_KEY)%'
+    api_key: '%env(default::ELASTICSEARCH_API_KEY)%'
+    index: '%env(ELASTICSEARCH_INDEX)%'
     client_options:
         retries: 3
         sslVerification: true
