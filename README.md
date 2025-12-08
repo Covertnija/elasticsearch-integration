@@ -46,7 +46,7 @@ Then manually add the bundle to your `config/bundles.php`:
 ```php
 return [
     // ...
-    ElasticsearchIntegration\ElasticsearchIntegrationBundle::class => ['prod' => true],
+    ElasticsearchIntegration\ElasticsearchIntegrationBundle::class => ['all' => true],
 ];
 ```
 
@@ -59,10 +59,7 @@ And create a configuration file `config/packages/elasticsearch_integration.yaml`
 ```yaml
 elasticsearch_integration:
     enabled: true
-    hosts:
-        - 'http://localhost:9200'
-        - 'http://localhost:9201'
-        - 'http://localhost:9202'
+    hosts: '%env(csv:ELASTICSEARCH_HOSTS)%'
     api_key: '%env(ELASTICSEARCH_API_KEY)%'
     client_options:
         retries: 3
