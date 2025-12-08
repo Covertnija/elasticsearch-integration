@@ -66,34 +66,4 @@ final class ConfigurationTest extends TestCase
         self::assertSame('custom-index', $config['index']);
         self::assertSame(['retries' => 3, 'sslVerification' => false], $config['client_options']);
     }
-
-    /**
-     * Test that hosts require at least one element.
-     */
-    public function testHostsRequireAtLeastOneElement(): void
-    {
-        $this->expectException(InvalidConfigurationException::class);
-
-        $this->processor->processConfiguration(
-            $this->configuration,
-            [[
-                'hosts' => [],
-            ]],
-        );
-    }
-
-    /**
-     * Test that empty host values are not allowed.
-     */
-    public function testEmptyHostValueNotAllowed(): void
-    {
-        $this->expectException(InvalidConfigurationException::class);
-
-        $this->processor->processConfiguration(
-            $this->configuration,
-            [[
-                'hosts' => [''],
-            ]],
-        );
-    }
 }
