@@ -59,7 +59,7 @@ final class ElasticsearchRoundRobinClientFactory implements ElasticsearchClientF
         array $options = [],
     ): Client {
         // Filter out empty host strings that might come from empty environment variables
-        $hosts = array_filter($hosts, fn($host) => !empty($host));
+        $hosts = array_filter($hosts, static fn (string $host): bool => $host !== '');
 
         if ($hosts === []) {
             throw ElasticsearchConfigurationException::emptyHosts();

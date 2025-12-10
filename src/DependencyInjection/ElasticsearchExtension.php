@@ -7,7 +7,7 @@ namespace ElasticsearchIntegration\DependencyInjection;
 use Elastic\Elasticsearch\Client;
 use ElasticsearchIntegration\Factory\ElasticsearchClientFactoryInterface;
 use ElasticsearchIntegration\Factory\ElasticsearchRoundRobinClientFactory;
-use InvalidArgumentException;
+use ElasticsearchIntegration\Formatter\KibanaCompatibleFormatter;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\DependencyInjection\Definition;
@@ -29,7 +29,7 @@ final class ElasticsearchExtension extends Extension
      * @param array<mixed> $configs The configuration arrays
      * @param ContainerBuilder $container The container builder
      *
-     * @throws InvalidArgumentException If configuration is invalid
+     * @throws \InvalidArgumentException If configuration is invalid
      */
     public function load(array $configs, ContainerBuilder $container): void
     {
@@ -43,6 +43,7 @@ final class ElasticsearchExtension extends Extension
 
         $this->registerClientFactory($container, $config);
         $this->registerElasticsearchClient($container, $config);
+        $this->registerKibanaFormatter($container, $config);
         $this->registerParameters($container, $config);
     }
 
@@ -109,6 +110,28 @@ final class ElasticsearchExtension extends Extension
         $container->setAlias(
             Client::class,
             'elasticsearch_integration.client',
+        )->setPublic(false);
+    }
+
+    /**
+     * Register the Kibana-compatible Monolog formatter.
+     *
+     * @param ContainerBuilder $container The container builder
+     * @param array{enabled: bool, hosts: array<string>, api_key: string|null, index: string, client_options: array<string, mixed>} $config The processed configuration
+     */
+    private function registerKibanaFormatter(ContainerBuilder $container, array $config): void
+    {
+        $formatterDefinition = new Definition(KibanaCompatibleFormatter::class);
+        $formatterDefinition->addArgument($config['index']);
+
+        $container->setDefinition(
+            'elasticsearch_integration.kibana_formatter',
+            $formatterDefinition,
+        );
+
+        $container->setAlias(
+            KibanaCompatibleFormatter::class,
+            'elasticsearch_integration.kibana_formatter',
         )->setPublic(false);
     }
 

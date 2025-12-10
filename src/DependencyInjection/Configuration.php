@@ -34,7 +34,7 @@ final class Configuration implements ConfigurationInterface
                     ->defaultValue(['http://localhost:9200'])
                     ->info('Array of Elasticsearch host URLs')
                     ->validate()
-                        ->ifTrue(fn($v) => !is_array($v) && !is_string($v))
+                        ->ifTrue(fn ($v) => ! \is_array($v) && ! \is_string($v))
                         ->thenInvalid('Hosts must be an array or a string.')
                     ->end()
                 ->end()

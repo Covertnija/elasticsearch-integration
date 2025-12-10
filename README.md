@@ -130,7 +130,7 @@ class MyService
 
 ### Monolog Integration
 
-Configure Monolog to use Elasticsearch for logging:
+Configure Monolog to use Elasticsearch for logging with Kibana-compatible timestamps:
 
 ```yaml
 # config/packages/monolog.yaml
@@ -146,8 +146,12 @@ services:
         class: Monolog\Handler\ElasticsearchHandler
         arguments:
             - '@elasticsearch.client'
-            - { index: 'app_logs' }
+            - { index: '%elasticsearch_integration.index%' }
+        calls:
+            - [setFormatter, ['@elasticsearch_integration.kibana_formatter']]
 ```
+
+> **Note**: The `KibanaCompatibleFormatter` renames Monolog's `datetime` field to `@timestamp`, which is required for Kibana time-based visualizations and dashboards.
 
 ## Architecture
 

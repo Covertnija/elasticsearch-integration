@@ -8,6 +8,7 @@ use Elastic\Elasticsearch\Client;
 use ElasticsearchIntegration\DependencyInjection\ElasticsearchExtension;
 use ElasticsearchIntegration\Factory\ElasticsearchClientFactoryInterface;
 use ElasticsearchIntegration\Factory\ElasticsearchRoundRobinClientFactory;
+use ElasticsearchIntegration\Formatter\KibanaCompatibleFormatter;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 
@@ -50,6 +51,8 @@ final class ElasticsearchExtensionTest extends TestCase
         self::assertTrue($this->container->hasAlias(Client::class));
         self::assertTrue($this->container->hasAlias(ElasticsearchRoundRobinClientFactory::class));
         self::assertTrue($this->container->hasAlias(ElasticsearchClientFactoryInterface::class));
+        self::assertTrue($this->container->hasDefinition('elasticsearch_integration.kibana_formatter'));
+        self::assertTrue($this->container->hasAlias(KibanaCompatibleFormatter::class));
     }
 
     /**
@@ -63,6 +66,7 @@ final class ElasticsearchExtensionTest extends TestCase
 
         self::assertFalse($this->container->hasDefinition('elasticsearch_integration.client_factory'));
         self::assertFalse($this->container->hasDefinition('elasticsearch_integration.client'));
+        self::assertFalse($this->container->hasDefinition('elasticsearch_integration.kibana_formatter'));
     }
 
     /**
@@ -182,5 +186,23 @@ final class ElasticsearchExtensionTest extends TestCase
         self::assertNull($this->container->getParameter('elasticsearch_integration.api_key'));
         self::assertSame('app-logs', $this->container->getParameter('elasticsearch_integration.index'));
         self::assertSame([], $this->container->getParameter('elasticsearch_integration.client_options'));
+    }
+
+    /**
+     * Test Kibana formatter is registered with correct index.
+     */
+    public function testKibanaFormatterRegisteredWithIndex(): void
+    {
+        $this->extension->load([[
+            'enabled' => true,
+            'hosts' => ['http://localhost:9200'],
+            'index' => 'custom-logs',
+        ]], $this->container);
+
+        $definition = $this->container->getDefinition('elasticsearch_integration.kibana_formatter');
+        $arguments = $definition->getArguments();
+
+        self::assertCount(1, $arguments);
+        self::assertSame('custom-logs', $arguments[0]);
     }
 }
