@@ -37,6 +37,7 @@ final class KibanaCompatibleFormatterTest extends TestCase
 
         $formatted = $this->formatter->format($record);
 
+        self::assertIsArray($formatted);
         self::assertArrayHasKey('@timestamp', $formatted);
         self::assertArrayNotHasKey('datetime', $formatted);
     }
@@ -56,6 +57,7 @@ final class KibanaCompatibleFormatterTest extends TestCase
 
         $formatted = $this->formatter->format($record);
 
+        self::assertIsArray($formatted);
         self::assertSame('Warning message', $formatted['message']);
         self::assertSame('app', $formatted['channel']);
         self::assertSame('WARNING', $formatted['level_name']);
@@ -79,6 +81,7 @@ final class KibanaCompatibleFormatterTest extends TestCase
 
         $formatted = $this->formatter->format($record);
 
+        self::assertIsArray($formatted);
         self::assertArrayHasKey('_index', $formatted);
         self::assertSame(self::TEST_INDEX, $formatted['_index']);
     }
@@ -98,6 +101,8 @@ final class KibanaCompatibleFormatterTest extends TestCase
 
         $formatted = $this->formatter->format($record);
 
+        self::assertIsArray($formatted);
+        self::assertArrayHasKey('@timestamp', $formatted);
         self::assertIsString($formatted['@timestamp']);
         self::assertMatchesRegularExpression(
             '/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/',

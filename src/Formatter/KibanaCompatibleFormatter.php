@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace ElasticsearchIntegration\Formatter;
 
 use Monolog\Formatter\ElasticsearchFormatter;
-use Monolog\LogRecord;
 
 /**
  * Elasticsearch formatter that is compatible with Kibana.
@@ -37,22 +36,21 @@ final class KibanaCompatibleFormatter extends ElasticsearchFormatter
     }
 
     /**
-     * Format a log record for Elasticsearch with Kibana-compatible timestamp.
+     * Convert a log message into an Elasticsearch record with Kibana-compatible timestamp.
      *
-     * @param LogRecord $record The log record to format
+     * @param array<mixed> $record Log message
      *
-     * @return array<string, mixed> The formatted record
+     * @return array<string, mixed>
      */
-    public function format(LogRecord $record): array
+    protected function getDocument(array $record): array
     {
-        /** @var array<string, mixed> $formatted */
-        $formatted = parent::format($record);
+        $document = parent::getDocument($record);
 
-        if (isset($formatted[self::MONOLOG_DATETIME_FIELD])) {
-            $formatted[self::KIBANA_TIMESTAMP_FIELD] = $formatted[self::MONOLOG_DATETIME_FIELD];
-            unset($formatted[self::MONOLOG_DATETIME_FIELD]);
+        if (isset($document[self::MONOLOG_DATETIME_FIELD])) {
+            $document[self::KIBANA_TIMESTAMP_FIELD] = $document[self::MONOLOG_DATETIME_FIELD];
+            unset($document[self::MONOLOG_DATETIME_FIELD]);
         }
 
-        return $formatted;
+        return $document;
     }
 }
