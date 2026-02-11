@@ -37,6 +37,8 @@ final class ElasticsearchExtension extends Extension
         $processedConfig = $this->processConfiguration($configuration, $configs);
         $config = ElasticsearchConfig::fromArray($processedConfig);
 
+        $container->setParameter('elasticsearch_integration.enabled', $config->enabled);
+
         if (! $config->enabled) {
             return;
         }
@@ -145,7 +147,6 @@ final class ElasticsearchExtension extends Extension
 
     private function registerParameters(ContainerBuilder $container, ElasticsearchConfig $config): void
     {
-        $container->setParameter('elasticsearch_integration.enabled', $config->enabled);
         $container->setParameter('elasticsearch_integration.hosts', $config->hosts);
         $container->setParameter('elasticsearch_integration.client_options', $config->clientOptions);
         $container->setParameter('elasticsearch_integration.index', $config->index);
