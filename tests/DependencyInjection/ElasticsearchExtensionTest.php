@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace ElasticsearchIntegration\Tests\DependencyInjection;
 
 use Elastic\Elasticsearch\Client;
-use Elastic\Elasticsearch\ClientInterface as ElasticsearchClientInterface;
 use ElasticsearchIntegration\DependencyInjection\ElasticsearchExtension;
 use ElasticsearchIntegration\Factory\ElasticsearchClientFactoryInterface;
 use ElasticsearchIntegration\Factory\ElasticsearchRoundRobinClientFactory;
@@ -215,7 +214,7 @@ final class ElasticsearchExtensionTest extends TestCase
         self::assertArrayHasKey('httpClient', $arguments[2]);
     }
 
-    public function testElasticsearchClientIsLazyWithInterfaceProxy(): void
+    public function testElasticsearchClientIsNotLazy(): void
     {
         $this->extension->load([[
             'enabled' => true,
@@ -224,11 +223,7 @@ final class ElasticsearchExtensionTest extends TestCase
 
         $definition = $this->container->getDefinition('elasticsearch_integration.client');
 
-        self::assertTrue($definition->isLazy());
-
-        $tags = $definition->getTags();
-        self::assertArrayHasKey('proxy', $tags);
-        self::assertSame(ElasticsearchClientInterface::class, $tags['proxy'][0]['interface']);
+        self::assertFalse($definition->isLazy());
     }
 
     public function testRoundRobinHttpClientIsLazyWithInterfaceProxy(): void

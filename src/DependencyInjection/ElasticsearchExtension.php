@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace ElasticsearchIntegration\DependencyInjection;
 
 use Elastic\Elasticsearch\Client;
-use Elastic\Elasticsearch\ClientInterface as ElasticsearchClientInterface;
 use ElasticsearchIntegration\Factory\ElasticsearchClientFactoryInterface;
 use ElasticsearchIntegration\Factory\ElasticsearchRoundRobinClientFactory;
 use ElasticsearchIntegration\Formatter\KibanaCompatibleFormatter;
@@ -105,8 +104,6 @@ final class ElasticsearchExtension extends Extension
             '%elasticsearch_integration.api_key%',
             ['httpClient' => new Reference('elasticsearch_integration.round_robin_http_client')],
         ]);
-        $clientDefinition->setLazy(true);
-        $clientDefinition->addTag('proxy', ['interface' => ElasticsearchClientInterface::class]);
 
         $container->setDefinition(
             'elasticsearch_integration.client',
