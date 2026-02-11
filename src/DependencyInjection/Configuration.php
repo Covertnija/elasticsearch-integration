@@ -30,26 +30,12 @@ final class Configuration implements ConfigurationInterface
                 ->end()
                 ->arrayNode('hosts')
                     ->beforeNormalization()
-                        ->always(static function (mixed $v): array {
-                            if (is_string($v)) {
-                                return [$v];
-                            }
-
-                            if (is_array($v)) {
-                                return array_merge(
-                                    ...array_map(
-                                        static fn (mixed $item): array => is_array($item) ? $item : [$item],
-                                        array_values($v),
-                                    ),
-                                );
-                            }
-
-                            return [$v];
-                        })
+                        ->ifString()
+                        ->then(static fn (string $v): array => [$v])
                     ->end()
                     ->defaultValue(['http://localhost:9200'])
                     ->info('Array of Elasticsearch host URLs')
-                    ->scalarPrototype()->end()
+                    ->variablePrototype()->end()
                 ->end()
                 ->scalarNode('api_key')
                     ->defaultNull()

@@ -68,6 +68,45 @@ final class ElasticsearchConfigTest extends TestCase
         self::assertFalse($config->enabled);
     }
 
+    public function testFromArrayFlattensNestedHostArrays(): void
+    {
+        $config = ElasticsearchConfig::fromArray([
+            'enabled' => true,
+            'hosts' => [['http://es1:9200', 'http://es2:9200']],
+            'api_key' => null,
+            'index' => 'app-logs',
+            'client_options' => [],
+        ]);
+
+        self::assertSame(['http://es1:9200', 'http://es2:9200'], $config->hosts);
+    }
+
+    public function testFromArrayFilterEmptyHostStrings(): void
+    {
+        $config = ElasticsearchConfig::fromArray([
+            'enabled' => true,
+            'hosts' => ['', 'http://es1:9200', ''],
+            'api_key' => null,
+            'index' => 'app-logs',
+            'client_options' => [],
+        ]);
+
+        self::assertSame(['http://es1:9200'], $config->hosts);
+    }
+
+    public function testFromArrayFlattensMixedNestedAndScalarHosts(): void
+    {
+        $config = ElasticsearchConfig::fromArray([
+            'enabled' => true,
+            'hosts' => ['http://es1:9200', ['http://es2:9200', 'http://es3:9200']],
+            'api_key' => null,
+            'index' => 'app-logs',
+            'client_options' => [],
+        ]);
+
+        self::assertSame(['http://es1:9200', 'http://es2:9200', 'http://es3:9200'], $config->hosts);
+    }
+
     public function testDtoIsReadonly(): void
     {
         $reflection = new ReflectionClass(ElasticsearchConfig::class);

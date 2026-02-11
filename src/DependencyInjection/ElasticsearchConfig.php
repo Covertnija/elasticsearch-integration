@@ -29,16 +29,34 @@ final readonly class ElasticsearchConfig
     }
 
     /**
-     * @param array{enabled: bool|string, hosts: array<string>, api_key: string|null, index: string, client_options: array<string, mixed>} $config
+     * @param array{enabled: bool|string, hosts: array<mixed>, api_key: string|null, index: string, client_options: array<string, mixed>} $config
      */
     public static function fromArray(array $config): self
     {
         return new self(
             enabled: (bool) $config['enabled'],
-            hosts: $config['hosts'],
+            hosts: self::normalizeHosts($config['hosts']),
             apiKey: $config['api_key'],
             index: $config['index'],
             clientOptions: $config['client_options'],
         );
+    }
+
+    /**
+     * Flattens nested host arrays that may result from env var processors like %env(csv:...)%.
+     *
+     * @param array<mixed> $hosts
+     *
+     * @return array<string>
+     */
+    private static function normalizeHosts(array $hosts): array
+    {
+        $normalized = [];
+
+        array_walk_recursive($hosts, static function (string|int|float|bool $host) use (&$normalized): void {
+            $normalized[] = (string) $host;
+        });
+
+        return array_values(array_filter($normalized, static fn (string $host): bool => $host !== ''));
     }
 }
