@@ -10,7 +10,6 @@ use ElasticsearchIntegration\Factory\ElasticsearchRoundRobinClientFactory;
 use ElasticsearchIntegration\Formatter\KibanaCompatibleFormatter;
 use ElasticsearchIntegration\HttpClient\RoundRobinHttpClient;
 use InvalidArgumentException;
-use Psr\Http\Client\ClientInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\DependencyInjection\Definition;
@@ -54,7 +53,6 @@ final class ElasticsearchExtension extends Extension
         ]);
         $definition->addTag('monolog.logger', ['channel' => 'elasticsearch']);
         $definition->setLazy(true);
-        $definition->addTag('proxy', ['interface' => ClientInterface::class]);
 
         $container->setDefinition(
             'elasticsearch_integration.round_robin_http_client',

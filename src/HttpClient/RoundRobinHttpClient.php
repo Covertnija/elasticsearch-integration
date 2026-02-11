@@ -20,7 +20,7 @@ use Symfony\Component\HttpClient\Psr18Client;
  * using a round-robin algorithm, providing load distribution and basic
  * fault tolerance.
  */
-final class RoundRobinHttpClient implements ClientInterface
+class RoundRobinHttpClient implements ClientInterface
 {
     /** @var array<string> */
     private array $hosts;

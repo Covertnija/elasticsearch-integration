@@ -11,7 +11,6 @@ use ElasticsearchIntegration\Factory\ElasticsearchRoundRobinClientFactory;
 use ElasticsearchIntegration\Formatter\KibanaCompatibleFormatter;
 use ElasticsearchIntegration\HttpClient\RoundRobinHttpClient;
 use PHPUnit\Framework\TestCase;
-use Psr\Http\Client\ClientInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 
 final class ElasticsearchExtensionTest extends TestCase
@@ -226,7 +225,7 @@ final class ElasticsearchExtensionTest extends TestCase
         self::assertFalse($definition->isLazy());
     }
 
-    public function testRoundRobinHttpClientIsLazyWithInterfaceProxy(): void
+    public function testRoundRobinHttpClientIsLazy(): void
     {
         $this->extension->load([[
             'enabled' => true,
@@ -236,9 +235,5 @@ final class ElasticsearchExtensionTest extends TestCase
         $definition = $this->container->getDefinition('elasticsearch_integration.round_robin_http_client');
 
         self::assertTrue($definition->isLazy());
-
-        $tags = $definition->getTags();
-        self::assertArrayHasKey('proxy', $tags);
-        self::assertSame(ClientInterface::class, $tags['proxy'][0]['interface']);
     }
 }
