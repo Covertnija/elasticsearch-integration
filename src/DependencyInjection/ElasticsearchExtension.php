@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace ElasticsearchIntegration\DependencyInjection;
 
 use Elastic\Elasticsearch\Client;
+use Elastic\Elasticsearch\ClientInterface as ElasticsearchClientInterface;
 use ElasticsearchIntegration\Factory\ElasticsearchClientFactoryInterface;
 use ElasticsearchIntegration\Factory\ElasticsearchRoundRobinClientFactory;
 use ElasticsearchIntegration\Formatter\KibanaCompatibleFormatter;
 use ElasticsearchIntegration\HttpClient\RoundRobinHttpClient;
 use InvalidArgumentException;
+use Psr\Http\Client\ClientInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\DependencyInjection\Definition;
@@ -52,6 +54,8 @@ final class ElasticsearchExtension extends Extension
             new Reference('logger', ContainerInterface::NULL_ON_INVALID_REFERENCE),
         ]);
         $definition->addTag('monolog.logger', ['channel' => 'elasticsearch']);
+        $definition->setLazy(true);
+        $definition->addTag('proxy', ['interface' => ClientInterface::class]);
 
         $container->setDefinition(
             'elasticsearch_integration.round_robin_http_client',
@@ -101,6 +105,8 @@ final class ElasticsearchExtension extends Extension
             '%elasticsearch_integration.api_key%',
             ['httpClient' => new Reference('elasticsearch_integration.round_robin_http_client')],
         ]);
+        $clientDefinition->setLazy(true);
+        $clientDefinition->addTag('proxy', ['interface' => ElasticsearchClientInterface::class]);
 
         $container->setDefinition(
             'elasticsearch_integration.client',

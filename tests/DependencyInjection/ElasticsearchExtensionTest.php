@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace ElasticsearchIntegration\Tests\DependencyInjection;
 
 use Elastic\Elasticsearch\Client;
+use Elastic\Elasticsearch\ClientInterface as ElasticsearchClientInterface;
 use ElasticsearchIntegration\DependencyInjection\ElasticsearchExtension;
 use ElasticsearchIntegration\Factory\ElasticsearchClientFactoryInterface;
 use ElasticsearchIntegration\Factory\ElasticsearchRoundRobinClientFactory;
 use ElasticsearchIntegration\Formatter\KibanaCompatibleFormatter;
 use ElasticsearchIntegration\HttpClient\RoundRobinHttpClient;
 use PHPUnit\Framework\TestCase;
+use Psr\Http\Client\ClientInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 
 final class ElasticsearchExtensionTest extends TestCase
@@ -211,5 +213,37 @@ final class ElasticsearchExtensionTest extends TestCase
         $arguments = $definition->getArguments();
 
         self::assertArrayHasKey('httpClient', $arguments[2]);
+    }
+
+    public function testElasticsearchClientIsLazyWithInterfaceProxy(): void
+    {
+        $this->extension->load([[
+            'enabled' => true,
+            'hosts' => ['http://localhost:9200'],
+        ]], $this->container);
+
+        $definition = $this->container->getDefinition('elasticsearch_integration.client');
+
+        self::assertTrue($definition->isLazy());
+
+        $tags = $definition->getTags();
+        self::assertArrayHasKey('proxy', $tags);
+        self::assertSame(ElasticsearchClientInterface::class, $tags['proxy'][0]['interface']);
+    }
+
+    public function testRoundRobinHttpClientIsLazyWithInterfaceProxy(): void
+    {
+        $this->extension->load([[
+            'enabled' => true,
+            'hosts' => ['http://localhost:9200'],
+        ]], $this->container);
+
+        $definition = $this->container->getDefinition('elasticsearch_integration.round_robin_http_client');
+
+        self::assertTrue($definition->isLazy());
+
+        $tags = $definition->getTags();
+        self::assertArrayHasKey('proxy', $tags);
+        self::assertSame(ClientInterface::class, $tags['proxy'][0]['interface']);
     }
 }
