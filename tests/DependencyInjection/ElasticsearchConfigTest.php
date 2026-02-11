@@ -42,6 +42,32 @@ final class ElasticsearchConfigTest extends TestCase
         self::assertSame([], $config->clientOptions);
     }
 
+    public function testFromArrayCastsStringEnabledToBool(): void
+    {
+        $config = ElasticsearchConfig::fromArray([
+            'enabled' => 'true',
+            'hosts' => ['http://localhost:9200'],
+            'api_key' => null,
+            'index' => 'app-logs',
+            'client_options' => [],
+        ]);
+
+        self::assertTrue($config->enabled);
+    }
+
+    public function testFromArrayCastsEmptyStringEnabledToFalse(): void
+    {
+        $config = ElasticsearchConfig::fromArray([
+            'enabled' => '',
+            'hosts' => ['http://localhost:9200'],
+            'api_key' => null,
+            'index' => 'app-logs',
+            'client_options' => [],
+        ]);
+
+        self::assertFalse($config->enabled);
+    }
+
     public function testDtoIsReadonly(): void
     {
         $reflection = new ReflectionClass(ElasticsearchConfig::class);

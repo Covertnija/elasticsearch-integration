@@ -33,7 +33,7 @@ final readonly class ElasticsearchConfig
     public static function fromArray(array $config): self
     {
         return new self(
-            enabled: $config['enabled'],
+            enabled: (bool) $config['enabled'],
             hosts: $config['hosts'],
             apiKey: $config['api_key'],
             index: $config['index'],
