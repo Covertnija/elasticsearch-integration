@@ -49,7 +49,7 @@ final readonly class ElasticsearchConfig
      *
      * @return array<string>
      */
-    private static function normalizeHosts(array $hosts): array
+    public static function normalizeHosts(array $hosts): array
     {
         $normalized = [];
 

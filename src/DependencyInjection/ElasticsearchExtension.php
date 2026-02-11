@@ -143,7 +143,7 @@ final class ElasticsearchExtension extends Extension
     private function registerParameters(ContainerBuilder $container, array $config): void
     {
         $container->setParameter('elasticsearch_integration.enabled', $config['enabled']);
-        $container->setParameter('elasticsearch_integration.hosts', $config['hosts']);
+        $container->setParameter('elasticsearch_integration.hosts', ElasticsearchConfig::normalizeHosts($config['hosts']));
         $container->setParameter('elasticsearch_integration.api_key', $config['api_key']);
         $container->setParameter('elasticsearch_integration.client_options', $config['client_options']);
         $container->setParameter('elasticsearch_integration.index', $config['index']);
