@@ -17,7 +17,7 @@ use ElasticsearchIntegration\Exception\ElasticsearchConfigurationException;
 interface ElasticsearchClientFactoryInterface
 {
     /**
-     * @param array<string> $hosts
+     * @param array<mixed> $hosts
      * @param array<string, mixed> $options
      *
      * @throws ElasticsearchConfigurationException

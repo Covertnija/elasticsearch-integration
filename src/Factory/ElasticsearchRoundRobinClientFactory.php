@@ -39,7 +39,7 @@ final class ElasticsearchRoundRobinClientFactory implements ElasticsearchClientF
     }
 
     /**
-     * @param array<string> $hosts
+     * @param array<mixed> $hosts
      * @param array<string, mixed> $options
      *
      * @throws ElasticsearchConfigurationException
@@ -50,8 +50,7 @@ final class ElasticsearchRoundRobinClientFactory implements ElasticsearchClientF
         ?string $apiKey = null,
         array $options = [],
     ): Client {
-        // Filter out empty host strings that might come from empty environment variables
-        $hosts = array_values(array_filter($hosts, static fn (string $host): bool => $host !== ''));
+        $hosts = self::normalizeHosts($hosts);
 
         if ($hosts === []) {
             throw ElasticsearchConfigurationException::emptyHosts();
@@ -170,5 +169,23 @@ final class ElasticsearchRoundRobinClientFactory implements ElasticsearchClientF
         }
 
         return $value;
+    }
+
+    /**
+     * Flattens nested host arrays that may result from env var processors like %env(csv:...)%.
+     *
+     * @param array<mixed> $hosts
+     *
+     * @return array<string>
+     */
+    private static function normalizeHosts(array $hosts): array
+    {
+        $normalized = [];
+
+        array_walk_recursive($hosts, static function (string|int|float|bool $host) use (&$normalized): void {
+            $normalized[] = (string) $host;
+        });
+
+        return array_values(array_filter($normalized, static fn (string $host): bool => $host !== ''));
     }
 }
