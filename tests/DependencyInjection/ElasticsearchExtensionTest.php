@@ -49,16 +49,16 @@ final class ElasticsearchExtensionTest extends TestCase
         self::assertTrue($this->container->hasAlias(KibanaCompatibleFormatter::class));
     }
 
-    public function testServicesNotRegisteredWhenDisabled(): void
+    public function testServicesAlwaysRegisteredWhenDisabled(): void
     {
         $this->extension->load([[
             'enabled' => false,
         ]], $this->container);
 
-        self::assertFalse($this->container->hasDefinition('elasticsearch_integration.round_robin_http_client'));
-        self::assertFalse($this->container->hasDefinition('elasticsearch_integration.client_factory'));
-        self::assertFalse($this->container->hasDefinition('elasticsearch_integration.client'));
-        self::assertFalse($this->container->hasDefinition('elasticsearch_integration.kibana_formatter'));
+        self::assertTrue($this->container->hasDefinition('elasticsearch_integration.round_robin_http_client'));
+        self::assertTrue($this->container->hasDefinition('elasticsearch_integration.client_factory'));
+        self::assertTrue($this->container->hasDefinition('elasticsearch_integration.client'));
+        self::assertTrue($this->container->hasDefinition('elasticsearch_integration.kibana_formatter'));
     }
 
     public function testParametersRegistered(): void
@@ -73,7 +73,7 @@ final class ElasticsearchExtensionTest extends TestCase
 
         self::assertTrue($this->container->getParameter('elasticsearch_integration.enabled'));
         self::assertSame(['http://es1:9200', 'http://es2:9200'], $this->container->getParameter('elasticsearch_integration.hosts'));
-        self::assertFalse($this->container->hasParameter('elasticsearch_integration.api_key'));
+        self::assertSame('test-key', $this->container->getParameter('elasticsearch_integration.api_key'));
         self::assertSame('test-index', $this->container->getParameter('elasticsearch_integration.index'));
         self::assertSame(['retries' => 3], $this->container->getParameter('elasticsearch_integration.client_options'));
     }
@@ -121,9 +121,8 @@ final class ElasticsearchExtensionTest extends TestCase
         self::assertSame('createClient', $factory[1]);
 
         $arguments = $definition->getArguments();
-        self::assertSame(['http://localhost:9200'], $arguments[0]);
-        self::assertSame('test-key', $arguments[1]);
-        self::assertSame(5, $arguments[2]['retries']);
+        self::assertSame('%elasticsearch_integration.hosts%', $arguments[0]);
+        self::assertSame('%elasticsearch_integration.api_key%', $arguments[1]);
         self::assertArrayHasKey('httpClient', $arguments[2]);
     }
 
@@ -171,7 +170,8 @@ final class ElasticsearchExtensionTest extends TestCase
         $arguments = $definition->getArguments();
 
         self::assertCount(1, $arguments);
-        self::assertSame('custom-logs', $arguments[0]);
+        self::assertSame('%elasticsearch_integration.index%', $arguments[0]);
+        self::assertSame('custom-logs', $this->container->getParameter('elasticsearch_integration.index'));
     }
 
     public function testRoundRobinHttpClientRegistered(): void
@@ -184,7 +184,8 @@ final class ElasticsearchExtensionTest extends TestCase
         $definition = $this->container->getDefinition('elasticsearch_integration.round_robin_http_client');
         $arguments = $definition->getArguments();
 
-        self::assertSame(['http://es1:9200', 'http://es2:9200'], $arguments[0]);
+        self::assertSame('%elasticsearch_integration.hosts%', $arguments[0]);
+        self::assertSame(['http://es1:9200', 'http://es2:9200'], $this->container->getParameter('elasticsearch_integration.hosts'));
     }
 
     public function testRoundRobinHttpClientAliasIsPrivate(): void
@@ -210,6 +211,5 @@ final class ElasticsearchExtensionTest extends TestCase
         $arguments = $definition->getArguments();
 
         self::assertArrayHasKey('httpClient', $arguments[2]);
-        self::assertSame(5, $arguments[2]['retries']);
     }
 }

@@ -12,6 +12,7 @@ use ElasticsearchIntegration\Formatter\KibanaCompatibleFormatter;
 use ElasticsearchIntegration\HttpClient\RoundRobinHttpClient;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
+use Symfony\Component\DependencyInjection\ParameterBag\EnvPlaceholderParameterBag;
 
 /**
  * Integration tests for the Elasticsearch bundle container compilation.
@@ -52,10 +53,9 @@ final class BundleIntegrationTest extends TestCase
     {
         $container = $this->createCompiledContainer(['enabled' => false]);
 
-        self::assertFalse($container->has('elasticsearch_integration.client_factory'));
-        self::assertFalse($container->has('elasticsearch_integration.client'));
-        self::assertFalse($container->has('elasticsearch_integration.kibana_formatter'));
-        self::assertFalse($container->has('elasticsearch_integration.round_robin_http_client'));
+        self::assertFalse($container->getParameter('elasticsearch_integration.enabled'));
+        self::assertTrue($container->has('elasticsearch_integration.client_factory'));
+        self::assertTrue($container->has('elasticsearch_integration.client'));
     }
 
     public function testClientFactoryServiceResolvesToCorrectClass(): void
@@ -82,7 +82,8 @@ final class BundleIntegrationTest extends TestCase
 
         $definition = $container->getDefinition('elasticsearch_integration.kibana_formatter');
         self::assertSame(KibanaCompatibleFormatter::class, $definition->getClass());
-        self::assertSame('my-custom-index', $definition->getArgument(0));
+        self::assertSame('%elasticsearch_integration.index%', $definition->getArgument(0));
+        self::assertSame('my-custom-index', $container->getParameter('elasticsearch_integration.index'));
     }
 
     public function testClientDefinitionUsesFactoryMethod(): void
@@ -96,13 +97,14 @@ final class BundleIntegrationTest extends TestCase
         self::assertSame('createClient', $factory[1]);
     }
 
-    public function testApiKeyNotExposedAsParameter(): void
+    public function testApiKeyIsRegisteredAsParameter(): void
     {
         $container = $this->createCompiledContainer([
             'api_key' => 'secret-key',
         ]);
 
-        self::assertFalse($container->hasParameter('elasticsearch_integration.api_key'));
+        self::assertTrue($container->hasParameter('elasticsearch_integration.api_key'));
+        self::assertSame('secret-key', $container->getParameter('elasticsearch_integration.api_key'));
     }
 
     public function testAllAliasesArePrivate(): void
@@ -148,6 +150,66 @@ final class BundleIntegrationTest extends TestCase
         self::assertArrayHasKey('httpClient', $arguments[2]);
     }
 
+    public function testContainerCompilesWithEnvVarConfig(): void
+    {
+        $container = $this->createCompiledContainerWithEnvVars(
+            [
+                'ELASTICSEARCH_ENABLED' => 'true',
+                'ELASTICSEARCH_HOSTS' => 'http://es1:9200,http://es2:9200',
+                'ELASTICSEARCH_API_KEY' => 'test-key',
+                'ELASTICSEARCH_INDEX' => 'app_logs',
+            ],
+            [
+                'enabled' => '%env(bool:ELASTICSEARCH_ENABLED)%',
+                'hosts' => '%env(csv:ELASTICSEARCH_HOSTS)%',
+                'api_key' => '%env(default::ELASTICSEARCH_API_KEY)%',
+                'index' => '%env(ELASTICSEARCH_INDEX)%',
+            ],
+        );
+
+        self::assertTrue($container->hasParameter('elasticsearch_integration.enabled'));
+    }
+
+    public function testContainerCompilesWithDisabledEnvVar(): void
+    {
+        $container = $this->createCompiledContainerWithEnvVars(
+            [
+                'ELASTICSEARCH_ENABLED' => 'false',
+                'ELASTICSEARCH_HOSTS' => '',
+                'ELASTICSEARCH_API_KEY' => '',
+                'ELASTICSEARCH_INDEX' => 'app_logs',
+            ],
+            [
+                'enabled' => '%env(bool:ELASTICSEARCH_ENABLED)%',
+                'hosts' => '%env(csv:ELASTICSEARCH_HOSTS)%',
+                'api_key' => '%env(default::ELASTICSEARCH_API_KEY)%',
+                'index' => '%env(ELASTICSEARCH_INDEX)%',
+            ],
+        );
+
+        self::assertTrue($container->hasParameter('elasticsearch_integration.enabled'));
+    }
+
+    public function testContainerCompilesWithSingleEnvVarHost(): void
+    {
+        $container = $this->createCompiledContainerWithEnvVars(
+            [
+                'ELASTICSEARCH_ENABLED' => 'true',
+                'ELASTICSEARCH_HOSTS' => 'http://localhost:9200',
+                'ELASTICSEARCH_API_KEY' => '',
+                'ELASTICSEARCH_INDEX' => 'app_logs',
+            ],
+            [
+                'enabled' => '%env(bool:ELASTICSEARCH_ENABLED)%',
+                'hosts' => '%env(csv:ELASTICSEARCH_HOSTS)%',
+                'api_key' => '%env(default::ELASTICSEARCH_API_KEY)%',
+                'index' => '%env(ELASTICSEARCH_INDEX)%',
+            ],
+        );
+
+        self::assertTrue($container->hasParameter('elasticsearch_integration.enabled'));
+    }
+
     /**
      * @param array<string, mixed> $config
      */
@@ -158,5 +220,34 @@ final class BundleIntegrationTest extends TestCase
         $extension->load([$config], $container);
 
         return $container;
+    }
+
+    /**
+     * Simulates how a real Symfony project loads the bundle with environment variables.
+     *
+     * @param array<string, string> $envVars
+     * @param array<string, mixed> $config
+     */
+    private function createCompiledContainerWithEnvVars(array $envVars, array $config): ContainerBuilder
+    {
+        foreach ($envVars as $key => $value) {
+            $_ENV[$key] = $value;
+            $_SERVER[$key] = $value;
+        }
+
+        try {
+            $bag = new EnvPlaceholderParameterBag();
+            $container = new ContainerBuilder($bag);
+
+            $extension = new ElasticsearchExtension();
+            $extension->load([$config], $container);
+            $container->compile(true);
+
+            return $container;
+        } finally {
+            foreach (array_keys($envVars) as $key) {
+                unset($_ENV[$key], $_SERVER[$key]);
+            }
+        }
     }
 }

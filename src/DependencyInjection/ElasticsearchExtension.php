@@ -33,28 +33,21 @@ final class ElasticsearchExtension extends Extension
     public function load(array $configs, ContainerBuilder $container): void
     {
         $configuration = new Configuration();
-        /** @var array{enabled: bool, hosts: array<string>, api_key: string|null, index: string, client_options: array<string, mixed>} $processedConfig */
+        /** @var array{enabled: bool|string, hosts: array<mixed>, api_key: string|null, index: string, client_options: array<string, mixed>} $processedConfig */
         $processedConfig = $this->processConfiguration($configuration, $configs);
-        $config = ElasticsearchConfig::fromArray($processedConfig);
 
-        $container->setParameter('elasticsearch_integration.enabled', $config->enabled);
-
-        if (! $config->enabled) {
-            return;
-        }
-
-        $this->registerRoundRobinHttpClient($container, $config);
+        $this->registerParameters($container, $processedConfig);
+        $this->registerRoundRobinHttpClient($container);
         $this->registerClientFactory($container);
-        $this->registerElasticsearchClient($container, $config);
-        $this->registerKibanaFormatter($container, $config);
-        $this->registerParameters($container, $config);
+        $this->registerElasticsearchClient($container);
+        $this->registerKibanaFormatter($container);
     }
 
-    private function registerRoundRobinHttpClient(ContainerBuilder $container, ElasticsearchConfig $config): void
+    private function registerRoundRobinHttpClient(ContainerBuilder $container): void
     {
         $definition = new Definition(RoundRobinHttpClient::class);
         $definition->setArguments([
-            $config->hosts,
+            '%elasticsearch_integration.hosts%',
             null,
             new Reference('logger', ContainerInterface::NULL_ON_INVALID_REFERENCE),
         ]);
@@ -95,12 +88,8 @@ final class ElasticsearchExtension extends Extension
         )->setPublic(false);
     }
 
-    private function registerElasticsearchClient(ContainerBuilder $container, ElasticsearchConfig $config): void
+    private function registerElasticsearchClient(ContainerBuilder $container): void
     {
-        $clientOptions = array_merge($config->clientOptions, [
-            'httpClient' => new Reference('elasticsearch_integration.round_robin_http_client'),
-        ]);
-
         $clientDefinition = new Definition(Client::class);
         $clientDefinition->setFactory([
             new Reference('elasticsearch_integration.client_factory'),
@@ -108,9 +97,9 @@ final class ElasticsearchExtension extends Extension
         ]);
 
         $clientDefinition->setArguments([
-            $config->hosts,
-            $config->apiKey,
-            $clientOptions,
+            '%elasticsearch_integration.hosts%',
+            '%elasticsearch_integration.api_key%',
+            ['httpClient' => new Reference('elasticsearch_integration.round_robin_http_client')],
         ]);
 
         $container->setDefinition(
@@ -129,10 +118,10 @@ final class ElasticsearchExtension extends Extension
         )->setPublic(false);
     }
 
-    private function registerKibanaFormatter(ContainerBuilder $container, ElasticsearchConfig $config): void
+    private function registerKibanaFormatter(ContainerBuilder $container): void
     {
         $formatterDefinition = new Definition(KibanaCompatibleFormatter::class);
-        $formatterDefinition->addArgument($config->index);
+        $formatterDefinition->addArgument('%elasticsearch_integration.index%');
 
         $container->setDefinition(
             'elasticsearch_integration.kibana_formatter',
@@ -145,11 +134,16 @@ final class ElasticsearchExtension extends Extension
         )->setPublic(false);
     }
 
-    private function registerParameters(ContainerBuilder $container, ElasticsearchConfig $config): void
+    /**
+     * @param array{enabled: bool|string, hosts: array<mixed>, api_key: string|null, index: string, client_options: array<string, mixed>} $config
+     */
+    private function registerParameters(ContainerBuilder $container, array $config): void
     {
-        $container->setParameter('elasticsearch_integration.hosts', $config->hosts);
-        $container->setParameter('elasticsearch_integration.client_options', $config->clientOptions);
-        $container->setParameter('elasticsearch_integration.index', $config->index);
+        $container->setParameter('elasticsearch_integration.enabled', $config['enabled']);
+        $container->setParameter('elasticsearch_integration.hosts', $config['hosts']);
+        $container->setParameter('elasticsearch_integration.api_key', $config['api_key']);
+        $container->setParameter('elasticsearch_integration.client_options', $config['client_options']);
+        $container->setParameter('elasticsearch_integration.index', $config['index']);
     }
 
     public function getAlias(): string

@@ -24,7 +24,7 @@ final class Configuration implements ConfigurationInterface
         /** @phpstan-ignore class.notFound */
         $rootNode
             ->children()
-                ->booleanNode('enabled')
+                ->scalarNode('enabled')
                     ->defaultTrue()
                     ->info('Enable or disable Elasticsearch integration')
                 ->end()
