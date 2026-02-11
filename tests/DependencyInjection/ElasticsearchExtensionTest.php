@@ -9,6 +9,7 @@ use ElasticsearchIntegration\DependencyInjection\ElasticsearchExtension;
 use ElasticsearchIntegration\Factory\ElasticsearchClientFactoryInterface;
 use ElasticsearchIntegration\Factory\ElasticsearchRoundRobinClientFactory;
 use ElasticsearchIntegration\Formatter\KibanaCompatibleFormatter;
+use ElasticsearchIntegration\Handler\LazyElasticsearchHandler;
 use ElasticsearchIntegration\HttpClient\RoundRobinHttpClient;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
@@ -235,5 +236,37 @@ final class ElasticsearchExtensionTest extends TestCase
         $definition = $this->container->getDefinition('elasticsearch_integration.round_robin_http_client');
 
         self::assertTrue($definition->isLazy());
+    }
+
+    public function testMonologHandlerRegistered(): void
+    {
+        $this->extension->load([[
+            'enabled' => true,
+            'hosts' => ['http://localhost:9200'],
+            'index' => 'test-index',
+        ]], $this->container);
+
+        self::assertTrue($this->container->hasDefinition('elasticsearch_integration.monolog_handler'));
+
+        $definition = $this->container->getDefinition('elasticsearch_integration.monolog_handler');
+        self::assertSame(LazyElasticsearchHandler::class, $definition->getClass());
+
+        $arguments = $definition->getArguments();
+        self::assertSame('%elasticsearch_integration.enabled%', $arguments[2]);
+
+        $tags = $definition->getTags();
+        self::assertArrayHasKey('monolog.logger', $tags);
+        self::assertSame('elasticsearch', $tags['monolog.logger'][0]['channel']);
+    }
+
+    public function testMonologHandlerAliasIsPrivate(): void
+    {
+        $this->extension->load([[
+            'enabled' => true,
+            'hosts' => ['http://localhost:9200'],
+        ]], $this->container);
+
+        $alias = $this->container->getAlias(LazyElasticsearchHandler::class);
+        self::assertFalse($alias->isPublic());
     }
 }

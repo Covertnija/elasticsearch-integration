@@ -8,6 +8,7 @@ use Elastic\Elasticsearch\Client;
 use ElasticsearchIntegration\Factory\ElasticsearchClientFactoryInterface;
 use ElasticsearchIntegration\Factory\ElasticsearchRoundRobinClientFactory;
 use ElasticsearchIntegration\Formatter\KibanaCompatibleFormatter;
+use ElasticsearchIntegration\Handler\LazyElasticsearchHandler;
 use ElasticsearchIntegration\HttpClient\RoundRobinHttpClient;
 use InvalidArgumentException;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
@@ -41,6 +42,7 @@ final class ElasticsearchExtension extends Extension
         $this->registerClientFactory($container);
         $this->registerElasticsearchClient($container);
         $this->registerKibanaFormatter($container);
+        $this->registerMonologHandler($container);
     }
 
     private function registerRoundRobinHttpClient(ContainerBuilder $container): void
@@ -132,6 +134,29 @@ final class ElasticsearchExtension extends Extension
         $container->setAlias(
             KibanaCompatibleFormatter::class,
             'elasticsearch_integration.kibana_formatter',
+        )->setPublic(false);
+    }
+
+    private function registerMonologHandler(ContainerBuilder $container): void
+    {
+        $handlerDefinition = new Definition(LazyElasticsearchHandler::class);
+        $handlerDefinition->setArguments([
+            new Reference('elasticsearch_integration.client'),
+            ['index' => '%elasticsearch_integration.index%'],
+            '%elasticsearch_integration.enabled%',
+            new Reference('elasticsearch_integration.kibana_formatter'),
+            new Reference('logger', ContainerInterface::NULL_ON_INVALID_REFERENCE),
+        ]);
+        $handlerDefinition->addTag('monolog.logger', ['channel' => 'elasticsearch']);
+
+        $container->setDefinition(
+            'elasticsearch_integration.monolog_handler',
+            $handlerDefinition,
+        );
+
+        $container->setAlias(
+            LazyElasticsearchHandler::class,
+            'elasticsearch_integration.monolog_handler',
         )->setPublic(false);
     }
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace ElasticsearchIntegration\HttpClient;
 
+use ElasticsearchIntegration\DependencyInjection\ElasticsearchConfig;
 use InvalidArgumentException;
 use Psr\Http\Client\ClientExceptionInterface;
 use Psr\Http\Client\ClientInterface;
@@ -32,7 +33,7 @@ class RoundRobinHttpClient implements ClientInterface
     private LoggerInterface $logger;
 
     /**
-     * @param array<string> $hosts
+     * @param array<mixed> $hosts
      *
      * @throws InvalidArgumentException
      */
@@ -41,6 +42,8 @@ class RoundRobinHttpClient implements ClientInterface
         ?ClientInterface $httpClient = null,
         ?LoggerInterface $logger = null,
     ) {
+        $hosts = ElasticsearchConfig::normalizeHosts($hosts);
+
         if ($hosts === []) {
             throw new InvalidArgumentException('At least one host must be provided');
         }
