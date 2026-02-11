@@ -1,47 +1,40 @@
 # Elasticsearch Integration
 
-A Symfony bundle providing an Elasticsearch client with multi-host support and load balancing.
+A Symfony bundle providing an Elasticsearch client with round-robin load balancing, automatic failover, and Kibana-compatible logging.
 
 ## Features
 
-- **Multi-host support** with automatic load balancing across Elasticsearch nodes
-- **Symfony Bundle integration** with autoconfiguration
-- **Flexible configuration** via Dependency Injection container
-- **Production-ready** with comprehensive tests
-- **Monolog integration** for logging Elasticsearch operations
-- **PSR-12 compliant** code with strict typing
+- **Round-robin load balancing** across multiple Elasticsearch nodes with automatic failover
+- **Symfony Bundle integration** with full DI container support and autowiring
+- **Flexible configuration** via YAML, environment variables, or programmatic setup
+- **Kibana-compatible logging** via a Monolog formatter that maps `datetime` to `@timestamp`
+- **100% test coverage** with unit and integration tests
+- **PHPStan level 9** strict static analysis
+- **PSR-12 compliant** with strict typing (`declare(strict_types=1)`)
 
 ## Requirements
 
-- PHP 8.2 or higher
-- Symfony 6.4 or higher
-- Elasticsearch 8.x or higher
-- elasticsearch/elasticsearch ^9.2
+- PHP 8.2+
+- Symfony 6.4+ or 7.x
+- Elasticsearch 8.x+
+- `elasticsearch/elasticsearch` ^9.2
 
 ## Installation
 
-### With Symfony Flex (Recommended)
-
-Install the bundle using Composer. Flex will automatically configure everything:
+### Step 1: Install the package
 
 ```bash
 composer require covertnija/elasticsearch-integration
 ```
 
-**That's it!** Symfony Flex will automatically:
-- ✅ Register the bundle in `config/bundles.php`
-- ✅ Create the configuration file `config/packages/elasticsearch_integration.yaml`
-- ✅ Add environment variables to `.env`
+### Step 2: Register the bundle
 
-### Without Symfony Flex (Manual Installation)
+**With Symfony Flex** — done automatically. Flex will:
+- Register the bundle in `config/bundles.php`
+- Create `config/packages/elasticsearch_integration.yaml`
+- Add environment variables to `.env`
 
-If you're not using Flex, install via Composer:
-
-```bash
-composer require covertnija/elasticsearch-integration
-```
-
-Then manually add the bundle to your `config/bundles.php`:
+**Without Symfony Flex** — add the bundle manually to `config/bundles.php`:
 
 ```php
 return [
@@ -50,11 +43,26 @@ return [
 ];
 ```
 
-And create a configuration file `config/packages/elasticsearch_integration.yaml`:
+### Step 3: Configure environment variables
 
-## Configuration
+Add the following to your `.env` file (Flex does this automatically):
 
-### Basic Configuration (Auto-created by Flex)
+```env
+ELASTICSEARCH_ENABLED=true
+ELASTICSEARCH_HOSTS=http://localhost:9200
+ELASTICSEARCH_API_KEY=
+ELASTICSEARCH_INDEX=app-logs
+```
+
+For multiple hosts, use a comma-separated list:
+
+```env
+ELASTICSEARCH_HOSTS=http://es-node1:9200,http://es-node2:9200,http://es-node3:9200
+```
+
+### Step 4: Create the configuration file
+
+If Flex didn't create it, add `config/packages/elasticsearch_integration.yaml`:
 
 ```yaml
 elasticsearch_integration:
@@ -62,75 +70,87 @@ elasticsearch_integration:
     hosts: '%env(csv:ELASTICSEARCH_HOSTS)%'
     api_key: '%env(default::ELASTICSEARCH_API_KEY)%'
     index: '%env(ELASTICSEARCH_INDEX)%'
+    client_options: {}
+```
+
+## Configuration Reference
+
+```yaml
+elasticsearch_integration:
+    # Enable or disable the integration (default: true)
+    enabled: true
+
+    # Elasticsearch host URLs — array or single string
+    hosts:
+        - 'http://localhost:9200'
+        - 'http://localhost:9201'
+
+    # API key for authentication (default: null)
+    api_key: null
+
+    # Default index name, used by the Kibana formatter (default: 'app-logs')
+    index: 'app-logs'
+
+    # Additional client options passed to Elasticsearch ClientBuilder
     client_options:
-        retries: 3
-        sslVerification: true
+        retries: 3                # Number of retries on failure
+        sslVerification: true     # Enable/disable SSL certificate verification
+        # elasticCloudId: '...'   # Elastic Cloud deployment ID
 ```
-
-### Environment Variables
-
-With Symfony Flex, these are automatically added to your `.env` file. Otherwise, add them manually:
-
-```env
-# Elasticsearch Configuration
-ELASTICSEARCH_ENABLED=true
-ELASTICSEARCH_HOSTS=http://localhost:9200,http://localhost:9201
-ELASTICSEARCH_API_KEY=
-
-# Optional: For Monolog integration
-ELASTICSEARCH_INDEX=app_logs
-```
-
-**Note**: `ELASTICSEARCH_HOSTS` can be a comma-separated list of hosts for load balancing.
 
 ## Usage
 
-### Basic Usage
+### Autowiring the Elasticsearch Client
 
-The Elasticsearch client is available as a service:
+The client is available via autowiring — just type-hint `Client`:
 
 ```php
 use Elastic\Elasticsearch\Client;
 
-class MyService
+class SearchService
 {
-    public function __construct(private Client $elasticsearch)
-    {
-    }
+    public function __construct(
+        private Client $elasticsearch,
+    ) {}
 
-    public function search(array $params): array
+    public function search(string $index, array $query): array
     {
-        return $this->elasticsearch->search($params);
+        return $this->elasticsearch->search([
+            'index' => $index,
+            'body'  => ['query' => $query],
+        ])->asArray();
     }
 }
 ```
 
-### Using the Factory Directly
+### Using the Factory for Custom Clients
 
-You can also use the factory directly for more control:
+Inject the factory to create clients with different configurations:
 
 ```php
-use ElasticsearchIntegration\Factory\ElasticsearchRoundRobinClientFactory;
+use Elastic\Elasticsearch\Client;
+use ElasticsearchIntegration\Factory\ElasticsearchClientFactoryInterface;
 
-class MyService
+class CustomClientService
 {
-    public function __construct(private ElasticsearchRoundRobinClientFactory $factory)
-    {
-    }
+    public function __construct(
+        private ElasticsearchClientFactoryInterface $factory,
+    ) {}
 
-    public function createCustomClient(): Client
+    public function createClient(): Client
     {
         return $this->factory->createClient(
-            ['http://custom-host:9200'],
-            'custom-api-key'
+            hosts: ['http://custom-host:9200'],
+            apiKey: 'custom-api-key',
+            options: ['retries' => 5],
         );
     }
 }
 ```
 
-### Monolog Integration
+### Monolog / Kibana Integration
 
-Configure Monolog to use Elasticsearch for logging with Kibana-compatible timestamps:
+Send logs to Elasticsearch with Kibana-compatible `@timestamp` fields:
 
 ```yaml
 # config/packages/monolog.yaml
@@ -141,128 +161,103 @@ monolog:
             id: monolog.handler.elasticsearch
             level: info
 
+# config/services.yaml
 services:
     monolog.handler.elasticsearch:
         class: Monolog\Handler\ElasticsearchHandler
         arguments:
-            - '@elasticsearch.client'
+            - '@elasticsearch_integration.client'
             - { index: '%elasticsearch_integration.index%' }
         calls:
             - [setFormatter, ['@elasticsearch_integration.kibana_formatter']]
 ```
 
-> **Note**: The `KibanaCompatibleFormatter` renames Monolog's `datetime` field to `@timestamp`, which is required for Kibana time-based visualizations and dashboards.
+The `KibanaCompatibleFormatter` renames Monolog's `datetime` field to `@timestamp`, which Kibana requires for time-based visualizations.
 
 ## Architecture
 
-### Core Components
+### Components
 
-- **ElasticsearchRoundRobinClientFactory**: Factory for creating Elasticsearch clients with multiple hosts
-- **ElasticsearchExtension**: Symfony DI extension for configuration and service registration
-- **Configuration**: Configuration schema definition
+| Component | Description |
+|-----------|-------------|
+| `RoundRobinHttpClient` | PSR-18 HTTP client that distributes requests across hosts with automatic failover |
+| `ElasticsearchRoundRobinClientFactory` | Factory that builds `Client` instances with validated options |
+| `ElasticsearchConfig` | Immutable DTO for typed configuration |
+| `ElasticsearchExtension` | Symfony DI extension — registers all services programmatically |
+| `KibanaCompatibleFormatter` | Monolog formatter mapping `datetime` → `@timestamp` |
 
-### Load Balancing
+### How Round-Robin Load Balancing Works
 
-The Elasticsearch PHP client (v9.2+) natively handles load balancing when multiple hosts are provided:
-
-1. Requests are automatically distributed across all configured hosts
-2. Failed requests are retried with alternative hosts
-3. Comprehensive logging tracks operations and failures
-4. Built-in fault tolerance ensures service continuity
-
-## Testing
-
-Run the test suite:
-
-```bash
-composer test
-```
-
-Run static analysis with PHPStan (level 9):
-
-```bash
-composer phpstan
-```
-
-Run code style checks:
-
-```bash
-composer cs-check
-```
-
-Fix code style issues:
-
-```bash
-composer cs-fix
-```
-
-Run all quality checks at once:
-
-```bash
-composer check
-```
-
-## Configuration Reference
-
-### Full Configuration Options
-
-```yaml
-elasticsearch_integration:
-    # Enable/disable the integration
-    enabled: true
-    
-    # Array of Elasticsearch host URLs
-    hosts:
-        - 'http://localhost:9200'
-        - 'http://localhost:9201'
-    
-    # Optional API key for authentication
-    api_key: null
-    
-    # Additional client options passed to Elasticsearch\ClientBuilder
-    # Supported: retries, sslVerification, elasticCloudId
-    client_options:
-        retries: 3
-        sslVerification: true
-```
+1. The `RoundRobinHttpClient` rotates through configured hosts on each request
+2. If a host fails (`ClientExceptionInterface`), the next host is tried automatically
+3. All hosts are attempted before throwing the first exception
+4. The round-robin index persists across requests for even distribution
+5. All operations are logged via the `elasticsearch` Monolog channel
 
 ### Available Services
 
-- `elasticsearch.client` - Main Elasticsearch client (public alias)
-- `Elastic\Elasticsearch\Client` - Type-hinted autowiring
-- `ElasticsearchIntegration\Factory\ElasticsearchRoundRobinClientFactory` - Client factory
-- `ElasticsearchIntegration\Factory\ElasticsearchClientFactoryInterface` - Factory interface for testing
+| Service ID | Class | Description |
+|------------|-------|-------------|
+| `elasticsearch_integration.client` | `Elastic\Elasticsearch\Client` | Main ES client |
+| `elasticsearch_integration.client_factory` | `ElasticsearchRoundRobinClientFactory` | Client factory |
+| `elasticsearch_integration.round_robin_http_client` | `RoundRobinHttpClient` | HTTP client with failover |
+| `elasticsearch_integration.kibana_formatter` | `KibanaCompatibleFormatter` | Monolog formatter |
 
-## Performance Considerations
+All services are **private** and available via autowiring:
 
-- **Connection Pooling**: The HTTP client maintains connection pools for each host
-- **Retry Logic**: Failed requests are automatically retried with the next available host
-- **Logging**: Consider log levels in production to avoid performance impact
-- **Timeout Configuration**: Adjust timeouts based on your network conditions and query complexity
+```php
+use Elastic\Elasticsearch\Client;
+use ElasticsearchIntegration\Factory\ElasticsearchClientFactoryInterface;
+use ElasticsearchIntegration\HttpClient\RoundRobinHttpClient;
+use ElasticsearchIntegration\Formatter\KibanaCompatibleFormatter;
+```
+
+### Container Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `elasticsearch_integration.enabled` | `bool` | Whether the integration is active |
+| `elasticsearch_integration.hosts` | `array<string>` | Configured host URLs |
+| `elasticsearch_integration.index` | `string` | Default index name |
+| `elasticsearch_integration.client_options` | `array` | Client builder options |
+
+> **Security note**: The API key is **not** exposed as a container parameter. It is passed directly to the client factory at build time.
+
+## Testing
+
+```bash
+# Run the test suite
+composer test
+
+# Run PHPStan (level 9)
+composer phpstan
+
+# Check code style (PSR-12)
+composer cs-check
+
+# Fix code style
+composer cs-fix
+
+# Run all checks at once
+composer check
+```
 
 ## Security
 
-- **API Key Authentication**: Use API keys instead of basic authentication when possible
-- **SSL/TLS**: Always use HTTPS in production environments
-- **Network Security**: Configure firewall rules to restrict access to Elasticsearch
-- **Input Validation**: Always validate and sanitize user input before sending to Elasticsearch
+- **API key not leaked** — the API key is never stored as a container parameter
+- **API key authentication** — use API keys instead of basic auth when possible
+- **SSL/TLS** — always use HTTPS in production (`sslVerification: true`)
+- **Network security** — restrict access to Elasticsearch via firewall rules
+- **Input validation** — sanitize all user input before sending to Elasticsearch
 
 ## Contributing
 
 1. Fork the repository
 2. Create a feature branch
-3. Make your changes
-4. Add tests for new functionality
-5. Run the test suite and code style checks
-6. Submit a pull request
+3. Make your changes with tests (aim for 100% coverage)
+4. Run `composer check` to verify tests, PHPStan, and code style
+5. Submit a pull request
 
 ## License
 
-This package is licensed under the MIT License. See the LICENSE file for details.
-
-## Support
-
-For issues and questions:
-- Create an issue on GitHub
-- Check the documentation
-- Review the test cases for usage examples
+MIT — see [LICENSE](LICENSE) for details.

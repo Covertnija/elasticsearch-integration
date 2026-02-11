@@ -16,14 +16,9 @@ use Symfony\Component\HttpKernel\Bundle\Bundle;
  */
 final class ElasticsearchIntegrationBundle extends Bundle
 {
-    /**
-     * Get the bundle path.
-     *
-     * @return string The bundle root directory path
-     */
     public function getPath(): string
     {
-        return \dirname(__DIR__);
+        return dirname(__DIR__);
     }
 
     public function getContainerExtension(): ?ExtensionInterface

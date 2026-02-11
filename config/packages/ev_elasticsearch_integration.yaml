@@ -1,0 +1,18 @@
+elasticsearch_integration:
+    # Enable or disable Elasticsearch integration
+    enabled: '%env(bool:ELASTICSEARCH_ENABLED)%'
+
+    # Array of Elasticsearch host URLs (comma-separated in env)
+    hosts: '%env(csv:ELASTICSEARCH_HOSTS)%'
+
+    # Elasticsearch API key for authentication
+    api_key: '%env(default::ELASTICSEARCH_API_KEY)%'
+
+    # Default Elasticsearch index name
+    index: '%env(ELASTICSEARCH_INDEX)%'
+
+    # Additional Elasticsearch client options
+    # Supported: retries, sslVerification, elasticCloudId
+    client_options:
+        # retries: 3
+        sslVerification: false

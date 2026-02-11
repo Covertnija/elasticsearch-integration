@@ -15,30 +15,17 @@ use Monolog\Formatter\ElasticsearchFormatter;
  */
 final class KibanaCompatibleFormatter extends ElasticsearchFormatter
 {
-    /**
-     * The field name used by Kibana for timestamp.
-     */
     private const KIBANA_TIMESTAMP_FIELD = '@timestamp';
 
-    /**
-     * The field name used by Monolog for datetime.
-     */
     private const MONOLOG_DATETIME_FIELD = 'datetime';
 
-    /**
-     * Create a new KibanaCompatibleFormatter instance.
-     *
-     * @param string $index Elasticsearch index name
-     */
     public function __construct(string $index)
     {
         parent::__construct($index, '');
     }
 
     /**
-     * Convert a log message into an Elasticsearch record with Kibana-compatible timestamp.
-     *
-     * @param array<mixed> $record Log message
+     * @param array<mixed> $record
      *
      * @return array<string, mixed>
      */

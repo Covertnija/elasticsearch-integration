@@ -11,9 +11,6 @@ use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
-/**
- * Unit tests for ElasticsearchRoundRobinClientFactory.
- */
 final class ElasticsearchRoundRobinClientFactoryTest extends TestCase
 {
     private ElasticsearchRoundRobinClientFactory $factory;
@@ -24,8 +21,6 @@ final class ElasticsearchRoundRobinClientFactoryTest extends TestCase
     }
 
     /**
-     * Test that creating a client with empty hosts throws an exception.
-     *
      * @throws AuthenticationException
      */
     public function testCreateClientWithEmptyHostsThrowsException(): void
@@ -37,14 +32,12 @@ final class ElasticsearchRoundRobinClientFactoryTest extends TestCase
     }
 
     /**
-     * Test unsupported option logs warning.
-     *
      * @throws AuthenticationException
      */
     public function testUnsupportedOptionLogsWarning(): void
     {
         $logger = $this->createMock(LoggerInterface::class);
-        $logger->expects(self::atLeastOnce())
+        $logger->expects($this->atLeastOnce())
             ->method('warning')
             ->with(
                 'Unsupported client option ignored',
@@ -59,8 +52,6 @@ final class ElasticsearchRoundRobinClientFactoryTest extends TestCase
     }
 
     /**
-     * Test creating a client with retries option.
-     *
      * @throws AuthenticationException
      */
     public function testCreateClientWithRetriesOption(): void
@@ -75,8 +66,6 @@ final class ElasticsearchRoundRobinClientFactoryTest extends TestCase
     }
 
     /**
-     * Test creating a client with SSL verification option.
-     *
      * @throws AuthenticationException
      */
     public function testCreateClientWithSslVerificationOption(): void
@@ -91,8 +80,6 @@ final class ElasticsearchRoundRobinClientFactoryTest extends TestCase
     }
 
     /**
-     * Test invalid retries option throws exception.
-     *
      * @throws AuthenticationException
      */
     public function testInvalidRetriesOptionThrowsException(): void
@@ -107,8 +94,6 @@ final class ElasticsearchRoundRobinClientFactoryTest extends TestCase
     }
 
     /**
-     * Test invalid SSL verification option throws exception.
-     *
      * @throws AuthenticationException
      */
     public function testInvalidSslVerificationOptionThrowsException(): void
@@ -123,8 +108,6 @@ final class ElasticsearchRoundRobinClientFactoryTest extends TestCase
     }
 
     /**
-     * Test null option value is ignored.
-     *
      * @throws AuthenticationException
      */
     public function testNullOptionValueIsIgnored(): void

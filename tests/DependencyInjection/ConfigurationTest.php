@@ -8,9 +8,6 @@ use ElasticsearchIntegration\DependencyInjection\Configuration;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Config\Definition\Processor;
 
-/**
- * Unit tests for Configuration.
- */
 final class ConfigurationTest extends TestCase
 {
     private Processor $processor;
@@ -23,9 +20,6 @@ final class ConfigurationTest extends TestCase
         $this->configuration = new Configuration();
     }
 
-    /**
-     * Test default configuration values.
-     */
     public function testDefaultConfiguration(): void
     {
         $config = $this->processor->processConfiguration(
@@ -40,9 +34,6 @@ final class ConfigurationTest extends TestCase
         self::assertSame([], $config['client_options']);
     }
 
-    /**
-     * Test custom configuration values.
-     */
     public function testCustomConfiguration(): void
     {
         $config = $this->processor->processConfiguration(
@@ -64,5 +55,15 @@ final class ConfigurationTest extends TestCase
         self::assertSame('test-api-key', $config['api_key']);
         self::assertSame('custom-index', $config['index']);
         self::assertSame(['retries' => 3, 'sslVerification' => false], $config['client_options']);
+    }
+
+    public function testStringHostNormalizedToArray(): void
+    {
+        $config = $this->processor->processConfiguration(
+            $this->configuration,
+            [['hosts' => 'http://single-host:9200']],
+        );
+
+        self::assertSame(['http://single-host:9200'], $config['hosts']);
     }
 }

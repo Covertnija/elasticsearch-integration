@@ -7,14 +7,8 @@ namespace ElasticsearchIntegration\Tests\Exception;
 use ElasticsearchIntegration\Exception\ElasticsearchConfigurationException;
 use PHPUnit\Framework\TestCase;
 
-/**
- * Unit tests for ElasticsearchConfigurationException.
- */
 final class ElasticsearchConfigurationExceptionTest extends TestCase
 {
-    /**
-     * Test emptyHosts factory method.
-     */
     public function testEmptyHosts(): void
     {
         $exception = ElasticsearchConfigurationException::emptyHosts();
@@ -23,9 +17,6 @@ final class ElasticsearchConfigurationExceptionTest extends TestCase
         self::assertSame(0, $exception->getCode());
     }
 
-    /**
-     * Test invalidClientOption factory method.
-     */
     public function testInvalidClientOption(): void
     {
         $exception = ElasticsearchConfigurationException::invalidClientOption('badOption', 'not supported');

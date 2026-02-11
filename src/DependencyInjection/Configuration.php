@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace ElasticsearchIntegration\DependencyInjection;
 
+use Symfony\Component\Config\Definition\Builder\ArrayNodeDefinition;
 use Symfony\Component\Config\Definition\Builder\TreeBuilder;
 use Symfony\Component\Config\Definition\ConfigurationInterface;
 
@@ -16,13 +17,12 @@ use Symfony\Component\Config\Definition\ConfigurationInterface;
  */
 final class Configuration implements ConfigurationInterface
 {
-    /**
-     * Generate the configuration tree builder.
-     */
     public function getConfigTreeBuilder(): TreeBuilder
     {
         $treeBuilder = new TreeBuilder('elasticsearch_integration');
+        /** @var ArrayNodeDefinition $rootNode */
         $rootNode = $treeBuilder->getRootNode();
+        assert($rootNode instanceof ArrayNodeDefinition);
 
         $rootNode
             ->children()
@@ -30,13 +30,14 @@ final class Configuration implements ConfigurationInterface
                     ->defaultTrue()
                     ->info('Enable or disable Elasticsearch integration')
                 ->end()
-                ->variableNode('hosts')
+                ->arrayNode('hosts')
+                    ->beforeNormalization()
+                        ->ifString()
+                        ->then(fn (string $v): array => [$v])
+                    ->end()
                     ->defaultValue(['http://localhost:9200'])
                     ->info('Array of Elasticsearch host URLs')
-                    ->validate()
-                        ->ifTrue(fn ($v) => ! \is_array($v) && ! \is_string($v))
-                        ->thenInvalid('Hosts must be an array or a string.')
-                    ->end()
+                    ->scalarPrototype()->end()
                 ->end()
                 ->scalarNode('api_key')
                     ->defaultNull()

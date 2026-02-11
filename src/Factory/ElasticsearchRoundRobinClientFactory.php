@@ -22,9 +22,6 @@ use Psr\Log\NullLogger;
  */
 final class ElasticsearchRoundRobinClientFactory implements ElasticsearchClientFactoryInterface
 {
-    /**
-     * Supported client options that can be passed to ClientBuilder.
-     */
     private const SUPPORTED_OPTIONS = [
         'retries',
         'sslVerification',
@@ -42,16 +39,11 @@ final class ElasticsearchRoundRobinClientFactory implements ElasticsearchClientF
     }
 
     /**
-     * Create an Elasticsearch client with round-robin load balancing.
+     * @param array<string> $hosts
+     * @param array<string, mixed> $options
      *
-     * @param array<string> $hosts Array of Elasticsearch host URLs
-     * @param string|null $apiKey Optional API key for authentication
-     * @param array<string, mixed> $options Additional client options
-     *
-     * @throws ElasticsearchConfigurationException If no hosts are provided
-     * @throws AuthenticationException If authentication fails
-     *
-     * @return Client Configured Elasticsearch client
+     * @throws ElasticsearchConfigurationException
+     * @throws AuthenticationException
      */
     public function createClient(
         array $hosts,
@@ -59,14 +51,14 @@ final class ElasticsearchRoundRobinClientFactory implements ElasticsearchClientF
         array $options = [],
     ): Client {
         // Filter out empty host strings that might come from empty environment variables
-        $hosts = array_filter($hosts, static fn (string $host): bool => $host !== '');
+        $hosts = array_values(array_filter($hosts, static fn (string $host): bool => $host !== ''));
 
         if ($hosts === []) {
             throw ElasticsearchConfigurationException::emptyHosts();
         }
 
         $this->logger->debug('Creating Elasticsearch client with round-robin load balancing', [
-            'hosts_count' => \count($hosts),
+            'hosts_count' => count($hosts),
         ]);
 
         $clientBuilder = ClientBuilder::create()->setHosts($hosts);
@@ -82,12 +74,9 @@ final class ElasticsearchRoundRobinClientFactory implements ElasticsearchClientF
     }
 
     /**
-     * Apply client options to the ClientBuilder.
+     * @param array<string, mixed> $options
      *
-     * @param ClientBuilder $clientBuilder The client builder instance
-     * @param array<string, mixed> $options The options to apply
-     *
-     * @throws ElasticsearchConfigurationException If an unsupported option is provided
+     * @throws ElasticsearchConfigurationException
      */
     private function applyClientOptions(ClientBuilder $clientBuilder, array $options): void
     {
@@ -112,9 +101,7 @@ final class ElasticsearchRoundRobinClientFactory implements ElasticsearchClientF
     }
 
     /**
-     * Validate and cast value to int.
-     *
-     * @throws ElasticsearchConfigurationException If value is not numeric
+     * @throws ElasticsearchConfigurationException
      */
     private function validateInt(mixed $value, string $option): int
     {
@@ -126,13 +113,11 @@ final class ElasticsearchRoundRobinClientFactory implements ElasticsearchClientF
     }
 
     /**
-     * Validate and cast value to bool.
-     *
-     * @throws ElasticsearchConfigurationException If value is not boolean
+     * @throws ElasticsearchConfigurationException
      */
     private function validateBool(mixed $value, string $option): bool
     {
-        if (! \is_bool($value)) {
+        if (! is_bool($value)) {
             throw ElasticsearchConfigurationException::invalidClientOption($option, 'expected boolean value');
         }
 
@@ -140,13 +125,11 @@ final class ElasticsearchRoundRobinClientFactory implements ElasticsearchClientF
     }
 
     /**
-     * Validate and cast value to string.
-     *
-     * @throws ElasticsearchConfigurationException If value is not string
+     * @throws ElasticsearchConfigurationException
      */
     private function validateString(mixed $value, string $option): string
     {
-        if (! \is_string($value)) {
+        if (! is_string($value)) {
             throw ElasticsearchConfigurationException::invalidClientOption($option, 'expected string value');
         }
 
@@ -154,9 +137,7 @@ final class ElasticsearchRoundRobinClientFactory implements ElasticsearchClientF
     }
 
     /**
-     * Validate HTTP client.
-     *
-     * @throws ElasticsearchConfigurationException If value is not a ClientInterface
+     * @throws ElasticsearchConfigurationException
      */
     private function validateHttpClient(mixed $value, string $option): ClientInterface
     {
@@ -168,9 +149,7 @@ final class ElasticsearchRoundRobinClientFactory implements ElasticsearchClientF
     }
 
     /**
-     * Validate logger.
-     *
-     * @throws ElasticsearchConfigurationException If value is not a LoggerInterface
+     * @throws ElasticsearchConfigurationException
      */
     private function validateLogger(mixed $value, string $option): LoggerInterface
     {
@@ -182,9 +161,7 @@ final class ElasticsearchRoundRobinClientFactory implements ElasticsearchClientF
     }
 
     /**
-     * Validate async HTTP client.
-     *
-     * @throws ElasticsearchConfigurationException If value is not an HttpAsyncClient
+     * @throws ElasticsearchConfigurationException
      */
     private function validateAsyncHttpClient(mixed $value, string $option): HttpAsyncClient
     {

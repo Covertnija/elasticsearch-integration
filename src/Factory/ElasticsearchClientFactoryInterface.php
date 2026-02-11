@@ -17,16 +17,11 @@ use ElasticsearchIntegration\Exception\ElasticsearchConfigurationException;
 interface ElasticsearchClientFactoryInterface
 {
     /**
-     * Create an Elasticsearch client.
+     * @param array<string> $hosts
+     * @param array<string, mixed> $options
      *
-     * @param array<string> $hosts Array of Elasticsearch host URLs
-     * @param string|null $apiKey Optional API key for authentication
-     * @param array<string, mixed> $options Additional client options
-     *
-     * @throws ElasticsearchConfigurationException If configuration is invalid
-     * @throws AuthenticationException If authentication fails
-     *
-     * @return Client Configured Elasticsearch client
+     * @throws ElasticsearchConfigurationException
+     * @throws AuthenticationException
      */
     public function createClient(
         array $hosts,

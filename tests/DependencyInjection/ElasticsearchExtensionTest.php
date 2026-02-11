@@ -9,12 +9,10 @@ use ElasticsearchIntegration\DependencyInjection\ElasticsearchExtension;
 use ElasticsearchIntegration\Factory\ElasticsearchClientFactoryInterface;
 use ElasticsearchIntegration\Factory\ElasticsearchRoundRobinClientFactory;
 use ElasticsearchIntegration\Formatter\KibanaCompatibleFormatter;
+use ElasticsearchIntegration\HttpClient\RoundRobinHttpClient;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 
-/**
- * Unit tests for ElasticsearchExtension.
- */
 final class ElasticsearchExtensionTest extends TestCase
 {
     private ElasticsearchExtension $extension;
@@ -27,17 +25,11 @@ final class ElasticsearchExtensionTest extends TestCase
         $this->container = new ContainerBuilder();
     }
 
-    /**
-     * Test extension alias.
-     */
     public function testGetAlias(): void
     {
         self::assertSame('elasticsearch_integration', $this->extension->getAlias());
     }
 
-    /**
-     * Test that services are registered when enabled.
-     */
     public function testServicesRegisteredWhenEnabled(): void
     {
         $this->extension->load([[
@@ -45,33 +37,30 @@ final class ElasticsearchExtensionTest extends TestCase
             'hosts' => ['http://localhost:9200'],
         ]], $this->container);
 
+        self::assertTrue($this->container->hasDefinition('elasticsearch_integration.round_robin_http_client'));
         self::assertTrue($this->container->hasDefinition('elasticsearch_integration.client_factory'));
         self::assertTrue($this->container->hasDefinition('elasticsearch_integration.client'));
         self::assertTrue($this->container->hasAlias('elasticsearch.client'));
         self::assertTrue($this->container->hasAlias(Client::class));
+        self::assertTrue($this->container->hasAlias(RoundRobinHttpClient::class));
         self::assertTrue($this->container->hasAlias(ElasticsearchRoundRobinClientFactory::class));
         self::assertTrue($this->container->hasAlias(ElasticsearchClientFactoryInterface::class));
         self::assertTrue($this->container->hasDefinition('elasticsearch_integration.kibana_formatter'));
         self::assertTrue($this->container->hasAlias(KibanaCompatibleFormatter::class));
     }
 
-    /**
-     * Test that services are not registered when disabled.
-     */
     public function testServicesNotRegisteredWhenDisabled(): void
     {
         $this->extension->load([[
             'enabled' => false,
         ]], $this->container);
 
+        self::assertFalse($this->container->hasDefinition('elasticsearch_integration.round_robin_http_client'));
         self::assertFalse($this->container->hasDefinition('elasticsearch_integration.client_factory'));
         self::assertFalse($this->container->hasDefinition('elasticsearch_integration.client'));
         self::assertFalse($this->container->hasDefinition('elasticsearch_integration.kibana_formatter'));
     }
 
-    /**
-     * Test parameters are registered correctly.
-     */
     public function testParametersRegistered(): void
     {
         $this->extension->load([[
@@ -84,14 +73,11 @@ final class ElasticsearchExtensionTest extends TestCase
 
         self::assertTrue($this->container->getParameter('elasticsearch_integration.enabled'));
         self::assertSame(['http://es1:9200', 'http://es2:9200'], $this->container->getParameter('elasticsearch_integration.hosts'));
-        self::assertSame('test-key', $this->container->getParameter('elasticsearch_integration.api_key'));
+        self::assertFalse($this->container->hasParameter('elasticsearch_integration.api_key'));
         self::assertSame('test-index', $this->container->getParameter('elasticsearch_integration.index'));
         self::assertSame(['retries' => 3], $this->container->getParameter('elasticsearch_integration.client_options'));
     }
 
-    /**
-     * Test client factory has logger argument.
-     */
     public function testClientFactoryHasLoggerArgument(): void
     {
         $this->extension->load([[
@@ -105,9 +91,6 @@ final class ElasticsearchExtensionTest extends TestCase
         self::assertCount(1, $arguments);
     }
 
-    /**
-     * Test client factory has monolog tag.
-     */
     public function testClientFactoryHasMonologTag(): void
     {
         $this->extension->load([[
@@ -122,9 +105,6 @@ final class ElasticsearchExtensionTest extends TestCase
         self::assertSame('elasticsearch', $tags['monolog.logger'][0]['channel']);
     }
 
-    /**
-     * Test client definition uses factory.
-     */
     public function testClientDefinitionUsesFactory(): void
     {
         $this->extension->load([[
@@ -143,13 +123,11 @@ final class ElasticsearchExtensionTest extends TestCase
         $arguments = $definition->getArguments();
         self::assertSame(['http://localhost:9200'], $arguments[0]);
         self::assertSame('test-key', $arguments[1]);
-        self::assertSame(['retries' => 5], $arguments[2]);
+        self::assertSame(5, $arguments[2]['retries']);
+        self::assertArrayHasKey('httpClient', $arguments[2]);
     }
 
-    /**
-     * Test elasticsearch.client alias is public.
-     */
-    public function testElasticsearchClientAliasIsPublic(): void
+    public function testElasticsearchClientAliasIsPrivate(): void
     {
         $this->extension->load([[
             'enabled' => true,
@@ -157,12 +135,9 @@ final class ElasticsearchExtensionTest extends TestCase
         ]], $this->container);
 
         $alias = $this->container->getAlias('elasticsearch.client');
-        self::assertTrue($alias->isPublic());
+        self::assertFalse($alias->isPublic());
     }
 
-    /**
-     * Test Client::class alias is private.
-     */
     public function testClientClassAliasIsPrivate(): void
     {
         $this->extension->load([[
@@ -174,23 +149,16 @@ final class ElasticsearchExtensionTest extends TestCase
         self::assertFalse($alias->isPublic());
     }
 
-    /**
-     * Test default configuration values are applied.
-     */
     public function testDefaultConfigurationApplied(): void
     {
         $this->extension->load([], $this->container);
 
         self::assertTrue($this->container->getParameter('elasticsearch_integration.enabled'));
         self::assertSame(['http://localhost:9200'], $this->container->getParameter('elasticsearch_integration.hosts'));
-        self::assertNull($this->container->getParameter('elasticsearch_integration.api_key'));
         self::assertSame('app-logs', $this->container->getParameter('elasticsearch_integration.index'));
         self::assertSame([], $this->container->getParameter('elasticsearch_integration.client_options'));
     }
 
-    /**
-     * Test Kibana formatter is registered with correct index.
-     */
     public function testKibanaFormatterRegisteredWithIndex(): void
     {
         $this->extension->load([[
@@ -204,5 +172,44 @@ final class ElasticsearchExtensionTest extends TestCase
 
         self::assertCount(1, $arguments);
         self::assertSame('custom-logs', $arguments[0]);
+    }
+
+    public function testRoundRobinHttpClientRegistered(): void
+    {
+        $this->extension->load([[
+            'enabled' => true,
+            'hosts' => ['http://es1:9200', 'http://es2:9200'],
+        ]], $this->container);
+
+        $definition = $this->container->getDefinition('elasticsearch_integration.round_robin_http_client');
+        $arguments = $definition->getArguments();
+
+        self::assertSame(['http://es1:9200', 'http://es2:9200'], $arguments[0]);
+    }
+
+    public function testRoundRobinHttpClientAliasIsPrivate(): void
+    {
+        $this->extension->load([[
+            'enabled' => true,
+            'hosts' => ['http://localhost:9200'],
+        ]], $this->container);
+
+        $alias = $this->container->getAlias(RoundRobinHttpClient::class);
+        self::assertFalse($alias->isPublic());
+    }
+
+    public function testClientOptionsIncludeRoundRobinHttpClient(): void
+    {
+        $this->extension->load([[
+            'enabled' => true,
+            'hosts' => ['http://localhost:9200'],
+            'client_options' => ['retries' => 5],
+        ]], $this->container);
+
+        $definition = $this->container->getDefinition('elasticsearch_integration.client');
+        $arguments = $definition->getArguments();
+
+        self::assertArrayHasKey('httpClient', $arguments[2]);
+        self::assertSame(5, $arguments[2]['retries']);
     }
 }
