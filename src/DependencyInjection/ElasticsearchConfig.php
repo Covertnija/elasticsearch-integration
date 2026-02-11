@@ -25,10 +25,11 @@ final readonly class ElasticsearchConfig
         public ?string $apiKey,
         public string $index,
         public array $clientOptions,
-    ) {}
+    ) {
+    }
 
     /**
-     * @param array{enabled: bool, hosts: array<string>, api_key: string|null, index: string, client_options: array<string, mixed>} $config
+     * @param array{enabled: bool|string, hosts: array<string>, api_key: string|null, index: string, client_options: array<string, mixed>} $config
      */
     public static function fromArray(array $config): self
     {

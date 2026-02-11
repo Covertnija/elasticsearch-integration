@@ -126,7 +126,7 @@ final class RoundRobinHttpClientTest extends TestCase
         $response = $this->createMock(ResponseInterface::class);
         $response->method('getStatusCode')->willReturn(200);
 
-        $exception = new class ('Connection refused') extends RuntimeException implements ClientExceptionInterface {};
+        $exception = new class('Connection refused') extends RuntimeException implements ClientExceptionInterface {};
 
         $httpClient = $this->createMock(ClientInterface::class);
         $httpClient->expects($this->exactly(2))
@@ -160,7 +160,7 @@ final class RoundRobinHttpClientTest extends TestCase
         $request->method('withUri')->willReturnSelf();
         $request->method('getMethod')->willReturn('GET');
 
-        $exception = new class ('Connection refused') extends RuntimeException implements ClientExceptionInterface {};
+        $exception = new class('Connection refused') extends RuntimeException implements ClientExceptionInterface {};
 
         $httpClient = $this->createMock(ClientInterface::class);
         $httpClient->expects($this->exactly(2))

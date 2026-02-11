@@ -43,6 +43,12 @@ return $config
         'class_attributes_separation' => ['elements' => ['method' => 'one']],
         'concat_space' => ['spacing' => 'one'],
         'yoda_style' => ['equal' => false, 'identical' => false, 'less_and_greater' => false],
+        'native_function_invocation' => false,
+        'global_namespace_import' => [
+            'import_classes' => true,
+            'import_constants' => false,
+            'import_functions' => false,
+        ],
     ])
     ->setRiskyAllowed(true)
     ->setFinder($finder)

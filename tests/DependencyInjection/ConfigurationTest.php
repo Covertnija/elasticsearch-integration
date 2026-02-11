@@ -66,4 +66,24 @@ final class ConfigurationTest extends TestCase
 
         self::assertSame(['http://single-host:9200'], $config['hosts']);
     }
+
+    public function testNestedArrayHostsFlattenedToScalars(): void
+    {
+        $config = $this->processor->processConfiguration(
+            $this->configuration,
+            [['hosts' => [['http://es1:9200', 'http://es2:9200']]]],
+        );
+
+        self::assertSame(['http://es1:9200', 'http://es2:9200'], $config['hosts']);
+    }
+
+    public function testMixedNestedAndScalarHostsFlattenedCorrectly(): void
+    {
+        $config = $this->processor->processConfiguration(
+            $this->configuration,
+            [['hosts' => ['http://es1:9200', ['http://es2:9200', 'http://es3:9200']]]],
+        );
+
+        self::assertSame(['http://es1:9200', 'http://es2:9200', 'http://es3:9200'], $config['hosts']);
+    }
 }

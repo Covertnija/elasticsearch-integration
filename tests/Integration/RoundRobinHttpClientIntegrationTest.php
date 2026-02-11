@@ -66,7 +66,7 @@ final class RoundRobinHttpClientIntegrationTest extends TestCase
             ->method('warning')
             ->with(
                 'Request to host failed, trying next host',
-                $this->callback(static fn (array $context): bool => $context['host'] === 'http://host1:9200'
+                self::callback(static fn (array $context): bool => $context['host'] === 'http://host1:9200'
                     && $context['error'] === 'Connection refused'),
             );
 

@@ -9,6 +9,7 @@ use ElasticsearchIntegration\Factory\ElasticsearchClientFactoryInterface;
 use ElasticsearchIntegration\Factory\ElasticsearchRoundRobinClientFactory;
 use ElasticsearchIntegration\Formatter\KibanaCompatibleFormatter;
 use ElasticsearchIntegration\HttpClient\RoundRobinHttpClient;
+use InvalidArgumentException;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\DependencyInjection\Definition;
@@ -27,7 +28,7 @@ final class ElasticsearchExtension extends Extension
     /**
      * @param array<mixed> $configs
      *
-     * @throws \InvalidArgumentException
+     * @throws InvalidArgumentException
      */
     public function load(array $configs, ContainerBuilder $container): void
     {
