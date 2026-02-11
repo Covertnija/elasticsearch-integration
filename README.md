@@ -8,6 +8,9 @@ A Symfony bundle providing an Elasticsearch client with round-robin load balanci
 - **Symfony Bundle integration** with full DI container support and autowiring
 - **Flexible configuration** via YAML, environment variables, or programmatic setup
 - **Kibana-compatible logging** via a Monolog formatter that maps `datetime` to `@timestamp`
+- **Built-in Monolog handler** with lazy initialization and enable/disable support
+- **Safe cache:clear** — lazy-loaded HTTP client prevents connections during container compilation
+- **Host normalization** — handles nested arrays from `%env(csv:...)%` automatically
 - **100% test coverage** with unit and integration tests
 - **PHPStan level 9** strict static analysis
 - **PSR-12 compliant** with strict typing (`declare(strict_types=1)`)
@@ -150,26 +153,32 @@ class CustomClientService
 
 ### Monolog / Kibana Integration
 
-Send logs to Elasticsearch with Kibana-compatible `@timestamp` fields:
+The bundle registers a `LazyElasticsearchHandler` that sends logs to Elasticsearch with Kibana-compatible `@timestamp` fields. The handler:
+
+- **Defers initialization** — the inner `ElasticsearchHandler` is only created when the first log is written, avoiding connection issues during `cache:clear`
+- **Respects the `enabled` flag** — silently discards logs when Elasticsearch is disabled
+- **Auto-excludes the `elasticsearch` channel** — prevents circular logging where the handler's own ES requests generate logs that feed back into itself
+- **Applies KibanaCompatibleFormatter** automatically
+
+To use it, reference the bundle's handler service in your monolog config:
 
 ```yaml
-# config/packages/monolog.yaml
+# config/packages/prod/monolog.yaml
 monolog:
     handlers:
         elasticsearch:
             type: service
-            id: monolog.handler.elasticsearch
+            id: elasticsearch_integration.monolog_handler
             level: info
+```
 
+If you need a custom service name (e.g. for existing configs), create an alias:
+
+```yaml
 # config/services.yaml
 services:
-    monolog.handler.elasticsearch:
-        class: Monolog\Handler\ElasticsearchHandler
-        arguments:
-            - '@elasticsearch_integration.client'
-            - { index: '%elasticsearch_integration.index%' }
-        calls:
-            - [setFormatter, ['@elasticsearch_integration.kibana_formatter']]
+    app.monolog_handler.elasticsearch:
+        alias: elasticsearch_integration.monolog_handler
 ```
 
 The `KibanaCompatibleFormatter` renames Monolog's `datetime` field to `@timestamp`, which Kibana requires for time-based visualizations.
@@ -182,9 +191,10 @@ The `KibanaCompatibleFormatter` renames Monolog's `datetime` field to `@timestam
 |-----------|-------------|
 | `RoundRobinHttpClient` | PSR-18 HTTP client that distributes requests across hosts with automatic failover |
 | `ElasticsearchRoundRobinClientFactory` | Factory that builds `Client` instances with validated options |
-| `ElasticsearchConfig` | Immutable DTO for typed configuration |
+| `ElasticsearchConfig` | Immutable DTO for typed configuration with host normalization |
 | `ElasticsearchExtension` | Symfony DI extension — registers all services programmatically |
 | `KibanaCompatibleFormatter` | Monolog formatter mapping `datetime` → `@timestamp` |
+| `LazyElasticsearchHandler` | Monolog handler with deferred initialization and enable/disable support |
 
 ### How Round-Robin Load Balancing Works
 
@@ -200,8 +210,9 @@ The `KibanaCompatibleFormatter` renames Monolog's `datetime` field to `@timestam
 |------------|-------|-------------|
 | `elasticsearch_integration.client` | `Elastic\Elasticsearch\Client` | Main ES client |
 | `elasticsearch_integration.client_factory` | `ElasticsearchRoundRobinClientFactory` | Client factory |
-| `elasticsearch_integration.round_robin_http_client` | `RoundRobinHttpClient` | HTTP client with failover |
+| `elasticsearch_integration.round_robin_http_client` | `RoundRobinHttpClient` | Lazy HTTP client with failover |
 | `elasticsearch_integration.kibana_formatter` | `KibanaCompatibleFormatter` | Monolog formatter |
+| `elasticsearch_integration.monolog_handler` | `LazyElasticsearchHandler` | Monolog handler for ES logging |
 
 All services are **private** and available via autowiring:
 
@@ -210,6 +221,7 @@ use Elastic\Elasticsearch\Client;
 use ElasticsearchIntegration\Factory\ElasticsearchClientFactoryInterface;
 use ElasticsearchIntegration\HttpClient\RoundRobinHttpClient;
 use ElasticsearchIntegration\Formatter\KibanaCompatibleFormatter;
+use ElasticsearchIntegration\Handler\LazyElasticsearchHandler;
 ```
 
 ### Container Parameters

@@ -90,4 +90,59 @@ final class LazyElasticsearchHandlerTest extends TestCase
 
         $this->addToAssertionCount(1);
     }
+
+    public function testIsHandlingExcludesElasticsearchChannel(): void
+    {
+        $handler = new LazyElasticsearchHandler(
+            $this->client,
+            ['index' => 'test-index'],
+            true,
+        );
+
+        $elasticsearchRecord = new LogRecord(
+            datetime: new \DateTimeImmutable(),
+            channel: 'elasticsearch',
+            level: Level::Error,
+            message: 'ES internal log',
+        );
+
+        $appRecord = new LogRecord(
+            datetime: new \DateTimeImmutable(),
+            channel: 'app',
+            level: Level::Error,
+            message: 'App log',
+        );
+
+        self::assertFalse($handler->isHandling($elasticsearchRecord));
+        self::assertTrue($handler->isHandling($appRecord));
+    }
+
+    public function testHandleBatchFiltersElasticsearchChannel(): void
+    {
+        $handler = new LazyElasticsearchHandler(
+            $this->client,
+            ['index' => 'test-index'],
+            false,
+        );
+
+        $records = [
+            new LogRecord(
+                datetime: new \DateTimeImmutable(),
+                channel: 'elasticsearch',
+                level: Level::Error,
+                message: 'ES internal log',
+            ),
+            new LogRecord(
+                datetime: new \DateTimeImmutable(),
+                channel: 'app',
+                level: Level::Error,
+                message: 'App log',
+            ),
+        ];
+
+        // Should not throw — elasticsearch channel records are filtered out
+        $handler->handleBatch($records);
+
+        $this->addToAssertionCount(1);
+    }
 }

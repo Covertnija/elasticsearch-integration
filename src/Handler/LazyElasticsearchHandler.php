@@ -23,6 +23,8 @@ use Psr\Log\LoggerInterface;
  */
 class LazyElasticsearchHandler extends AbstractProcessingHandler
 {
+    private const EXCLUDED_CHANNEL = 'elasticsearch';
+
     private ?ElasticsearchHandler $innerHandler = null;
 
     private bool $initializing = false;
@@ -42,6 +44,15 @@ class LazyElasticsearchHandler extends AbstractProcessingHandler
         parent::__construct($level, $bubble);
     }
 
+    public function isHandling(LogRecord $record): bool
+    {
+        if ($record->channel === self::EXCLUDED_CHANNEL) {
+            return false;
+        }
+
+        return parent::isHandling($record);
+    }
+
     protected function write(LogRecord $record): void
     {
         if (!$this->enabled) {
@@ -59,6 +70,15 @@ class LazyElasticsearchHandler extends AbstractProcessingHandler
     public function handleBatch(array $records): void
     {
         if (!$this->enabled) {
+            return;
+        }
+
+        $records = array_filter(
+            $records,
+            static fn (LogRecord $record): bool => $record->channel !== self::EXCLUDED_CHANNEL,
+        );
+
+        if ($records === []) {
             return;
         }
 
