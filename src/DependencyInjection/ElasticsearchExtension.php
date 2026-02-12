@@ -55,7 +55,6 @@ final class ElasticsearchExtension extends Extension
             '%elasticsearch_integration.ssl_verification%',
         ]);
         $definition->addTag('monolog.logger', ['channel' => 'elasticsearch']);
-        $definition->setLazy(true);
 
         $container->setDefinition(
             'elasticsearch_integration.round_robin_http_client',
@@ -105,7 +104,6 @@ final class ElasticsearchExtension extends Extension
             '%elasticsearch_integration.api_key%',
             [
                 'httpClient' => new Reference('elasticsearch_integration.round_robin_http_client'),
-                'sslVerification' => '%elasticsearch_integration.ssl_verification%',
             ],
         ]);
 

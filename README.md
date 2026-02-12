@@ -9,7 +9,7 @@ A Symfony bundle providing an Elasticsearch client with round-robin load balanci
 - **Flexible configuration** via YAML, environment variables, or programmatic setup
 - **Kibana-compatible logging** via a Monolog formatter that maps `datetime` to `@timestamp`
 - **Built-in Monolog handler** with lazy initialization and enable/disable support
-- **Safe cache:clear** — lazy-loaded HTTP client prevents connections during container compilation
+- **Safe cache:clear** — deferred handler initialization prevents connections during container compilation
 - **Host normalization** — handles nested arrays from `%env(csv:...)%` automatically
 - **100% test coverage** with unit and integration tests
 - **PHPStan level 9** strict static analysis
@@ -210,7 +210,7 @@ The `KibanaCompatibleFormatter` renames Monolog's `datetime` field to `@timestam
 |------------|-------|-------------|
 | `elasticsearch_integration.client` | `Elastic\Elasticsearch\Client` | Main ES client |
 | `elasticsearch_integration.client_factory` | `ElasticsearchRoundRobinClientFactory` | Client factory |
-| `elasticsearch_integration.round_robin_http_client` | `RoundRobinHttpClient` | Lazy HTTP client with failover |
+| `elasticsearch_integration.round_robin_http_client` | `RoundRobinHttpClient` | HTTP client with round-robin failover |
 | `elasticsearch_integration.kibana_formatter` | `KibanaCompatibleFormatter` | Monolog formatter |
 | `elasticsearch_integration.monolog_handler` | `LazyElasticsearchHandler` | Monolog handler for ES logging |
 

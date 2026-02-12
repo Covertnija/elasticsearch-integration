@@ -226,7 +226,7 @@ final class ElasticsearchExtensionTest extends TestCase
         self::assertFalse($definition->isLazy());
     }
 
-    public function testRoundRobinHttpClientIsLazy(): void
+    public function testRoundRobinHttpClientIsNotLazy(): void
     {
         $this->extension->load([[
             'enabled' => true,
@@ -235,7 +235,7 @@ final class ElasticsearchExtensionTest extends TestCase
 
         $definition = $this->container->getDefinition('elasticsearch_integration.round_robin_http_client');
 
-        self::assertTrue($definition->isLazy());
+        self::assertFalse($definition->isLazy());
     }
 
     public function testMonologHandlerRegistered(): void
@@ -291,7 +291,7 @@ final class ElasticsearchExtensionTest extends TestCase
         self::assertSame('%elasticsearch_integration.ssl_verification%', $arguments[3]);
     }
 
-    public function testClientOptionsIncludeSslVerification(): void
+    public function testClientOptionsDoNotIncludeSslVerification(): void
     {
         $this->extension->load([[
             'enabled' => true,
@@ -302,8 +302,7 @@ final class ElasticsearchExtensionTest extends TestCase
         $definition = $this->container->getDefinition('elasticsearch_integration.client');
         $arguments = $definition->getArguments();
 
-        self::assertArrayHasKey('sslVerification', $arguments[2]);
-        self::assertSame('%elasticsearch_integration.ssl_verification%', $arguments[2]['sslVerification']);
+        self::assertArrayNotHasKey('sslVerification', $arguments[2]);
     }
 
     public function testMonologHandlerAliasIsPrivate(): void
