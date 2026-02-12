@@ -226,7 +226,7 @@ final class ElasticsearchExtensionTest extends TestCase
         self::assertFalse($definition->isLazy());
     }
 
-    public function testRoundRobinHttpClientIsNotLazy(): void
+    public function testRoundRobinHttpClientIsLazy(): void
     {
         $this->extension->load([[
             'enabled' => true,
@@ -235,7 +235,7 @@ final class ElasticsearchExtensionTest extends TestCase
 
         $definition = $this->container->getDefinition('elasticsearch_integration.round_robin_http_client');
 
-        self::assertFalse($definition->isLazy());
+        self::assertTrue($definition->isLazy());
     }
 
     public function testMonologHandlerRegistered(): void

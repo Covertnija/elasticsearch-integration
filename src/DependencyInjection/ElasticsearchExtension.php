@@ -55,6 +55,7 @@ final class ElasticsearchExtension extends Extension
             '%elasticsearch_integration.ssl_verification%',
         ]);
         $definition->addTag('monolog.logger', ['channel' => 'elasticsearch']);
+        $definition->setLazy(true);
 
         $container->setDefinition(
             'elasticsearch_integration.round_robin_http_client',
@@ -171,7 +172,7 @@ final class ElasticsearchExtension extends Extension
         $container->setParameter('elasticsearch_integration.hosts', ElasticsearchConfig::normalizeHosts($config['hosts']));
         $container->setParameter('elasticsearch_integration.api_key', $config['api_key']);
         $container->setParameter('elasticsearch_integration.client_options', $config['client_options']);
-        $container->setParameter('elasticsearch_integration.ssl_verification', $config['client_options']['sslVerification'] ?? true);
+        $container->setParameter('elasticsearch_integration.ssl_verification', (bool) ($config['client_options']['sslVerification'] ?? true));
         $container->setParameter('elasticsearch_integration.index', $config['index']);
     }
 

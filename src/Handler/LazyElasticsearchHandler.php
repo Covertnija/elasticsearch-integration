@@ -12,6 +12,7 @@ use Monolog\Handler\ElasticsearchHandler;
 use Monolog\Level;
 use Monolog\LogRecord;
 use Psr\Log\LoggerInterface;
+use Throwable;
 
 /**
  * Lazy-initializing Elasticsearch handler that defers ElasticsearchHandler construction.
@@ -55,7 +56,7 @@ class LazyElasticsearchHandler extends AbstractProcessingHandler
 
     protected function write(LogRecord $record): void
     {
-        if (!$this->enabled) {
+        if (! $this->enabled) {
             return;
         }
 
@@ -69,7 +70,7 @@ class LazyElasticsearchHandler extends AbstractProcessingHandler
 
     public function handleBatch(array $records): void
     {
-        if (!$this->enabled) {
+        if (! $this->enabled) {
             return;
         }
 
@@ -124,7 +125,7 @@ class LazyElasticsearchHandler extends AbstractProcessingHandler
             if ($this->kibanaFormatter !== null) {
                 $this->innerHandler->setFormatter($this->kibanaFormatter);
             }
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             $this->logger?->error('Failed to initialize ElasticsearchHandler', [
                 'error' => $e->getMessage(),
             ]);

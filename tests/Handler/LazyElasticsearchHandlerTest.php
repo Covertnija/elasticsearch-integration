@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace ElasticsearchIntegration\Tests\Handler;
 
+use DateTimeImmutable;
 use Elastic\Elasticsearch\Client;
 use Elastic\Elasticsearch\ClientBuilder;
 use ElasticsearchIntegration\Formatter\KibanaCompatibleFormatter;
@@ -32,7 +33,7 @@ final class LazyElasticsearchHandlerTest extends TestCase
         );
 
         $record = new LogRecord(
-            datetime: new \DateTimeImmutable(),
+            datetime: new DateTimeImmutable(),
             channel: 'test',
             level: Level::Error,
             message: 'Test message',
@@ -53,7 +54,7 @@ final class LazyElasticsearchHandlerTest extends TestCase
         );
 
         $record = new LogRecord(
-            datetime: new \DateTimeImmutable(),
+            datetime: new DateTimeImmutable(),
             channel: 'test',
             level: Level::Error,
             message: 'Test message',
@@ -100,14 +101,14 @@ final class LazyElasticsearchHandlerTest extends TestCase
         );
 
         $elasticsearchRecord = new LogRecord(
-            datetime: new \DateTimeImmutable(),
+            datetime: new DateTimeImmutable(),
             channel: 'elasticsearch',
             level: Level::Error,
             message: 'ES internal log',
         );
 
         $appRecord = new LogRecord(
-            datetime: new \DateTimeImmutable(),
+            datetime: new DateTimeImmutable(),
             channel: 'app',
             level: Level::Error,
             message: 'App log',
@@ -127,13 +128,13 @@ final class LazyElasticsearchHandlerTest extends TestCase
 
         $records = [
             new LogRecord(
-                datetime: new \DateTimeImmutable(),
+                datetime: new DateTimeImmutable(),
                 channel: 'elasticsearch',
                 level: Level::Error,
                 message: 'ES internal log',
             ),
             new LogRecord(
-                datetime: new \DateTimeImmutable(),
+                datetime: new DateTimeImmutable(),
                 channel: 'app',
                 level: Level::Error,
                 message: 'App log',
