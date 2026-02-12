@@ -12,6 +12,7 @@ use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
+use Symfony\Component\HttpClient\HttpClient;
 use Symfony\Component\HttpClient\Psr18Client;
 
 /**
@@ -41,6 +42,7 @@ class RoundRobinHttpClient implements ClientInterface
         array $hosts,
         ?ClientInterface $httpClient = null,
         ?LoggerInterface $logger = null,
+        bool $sslVerification = true,
     ) {
         $hosts = ElasticsearchConfig::normalizeHosts($hosts);
 
@@ -49,7 +51,12 @@ class RoundRobinHttpClient implements ClientInterface
         }
 
         $this->hosts = $hosts;
-        $this->httpClient = $httpClient ?? new Psr18Client();
+        $this->httpClient = $httpClient ?? new Psr18Client(
+            HttpClient::create([
+                'verify_peer' => $sslVerification,
+                'verify_host' => $sslVerification,
+            ]),
+        );
         $this->logger = $logger ?? new NullLogger();
 
         $this->logger->debug('RoundRobinHttpClient initialized', [

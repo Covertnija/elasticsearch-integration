@@ -179,6 +179,24 @@ final class RoundRobinHttpClientTest extends TestCase
         $client->sendRequest($request);
     }
 
+    public function testConstructorAcceptsSslVerificationFalse(): void
+    {
+        $hosts = ['https://localhost:9200'];
+
+        $client = new RoundRobinHttpClient($hosts, null, new NullLogger(), false);
+
+        self::assertSame($hosts, $client->getHosts());
+    }
+
+    public function testConstructorAcceptsSslVerificationTrue(): void
+    {
+        $hosts = ['https://localhost:9200'];
+
+        $client = new RoundRobinHttpClient($hosts, null, new NullLogger(), true);
+
+        self::assertSame($hosts, $client->getHosts());
+    }
+
     public function testSendRequestAdvancesHostIndex(): void
     {
         $uri = $this->createMock(UriInterface::class);

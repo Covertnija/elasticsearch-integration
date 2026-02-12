@@ -259,6 +259,53 @@ final class ElasticsearchExtensionTest extends TestCase
         self::assertSame('elasticsearch', $tags['monolog.logger'][0]['channel']);
     }
 
+    public function testSslVerificationDefaultsToTrue(): void
+    {
+        $this->extension->load([], $this->container);
+
+        self::assertTrue($this->container->getParameter('elasticsearch_integration.ssl_verification'));
+    }
+
+    public function testSslVerificationCanBeDisabled(): void
+    {
+        $this->extension->load([[
+            'enabled' => true,
+            'hosts' => ['https://localhost:9200'],
+            'client_options' => ['sslVerification' => false],
+        ]], $this->container);
+
+        self::assertFalse($this->container->getParameter('elasticsearch_integration.ssl_verification'));
+    }
+
+    public function testRoundRobinHttpClientReceivesSslVerificationArgument(): void
+    {
+        $this->extension->load([[
+            'enabled' => true,
+            'hosts' => ['https://localhost:9200'],
+            'client_options' => ['sslVerification' => false],
+        ]], $this->container);
+
+        $definition = $this->container->getDefinition('elasticsearch_integration.round_robin_http_client');
+        $arguments = $definition->getArguments();
+
+        self::assertSame('%elasticsearch_integration.ssl_verification%', $arguments[3]);
+    }
+
+    public function testClientOptionsIncludeSslVerification(): void
+    {
+        $this->extension->load([[
+            'enabled' => true,
+            'hosts' => ['https://localhost:9200'],
+            'client_options' => ['sslVerification' => false],
+        ]], $this->container);
+
+        $definition = $this->container->getDefinition('elasticsearch_integration.client');
+        $arguments = $definition->getArguments();
+
+        self::assertArrayHasKey('sslVerification', $arguments[2]);
+        self::assertSame('%elasticsearch_integration.ssl_verification%', $arguments[2]['sslVerification']);
+    }
+
     public function testMonologHandlerAliasIsPrivate(): void
     {
         $this->extension->load([[

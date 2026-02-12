@@ -52,6 +52,7 @@ final class ElasticsearchExtension extends Extension
             '%elasticsearch_integration.hosts%',
             null,
             new Reference('logger', ContainerInterface::NULL_ON_INVALID_REFERENCE),
+            '%elasticsearch_integration.ssl_verification%',
         ]);
         $definition->addTag('monolog.logger', ['channel' => 'elasticsearch']);
         $definition->setLazy(true);
@@ -102,7 +103,10 @@ final class ElasticsearchExtension extends Extension
         $clientDefinition->setArguments([
             '%elasticsearch_integration.hosts%',
             '%elasticsearch_integration.api_key%',
-            ['httpClient' => new Reference('elasticsearch_integration.round_robin_http_client')],
+            [
+                'httpClient' => new Reference('elasticsearch_integration.round_robin_http_client'),
+                'sslVerification' => '%elasticsearch_integration.ssl_verification%',
+            ],
         ]);
 
         $container->setDefinition(
@@ -169,6 +173,7 @@ final class ElasticsearchExtension extends Extension
         $container->setParameter('elasticsearch_integration.hosts', ElasticsearchConfig::normalizeHosts($config['hosts']));
         $container->setParameter('elasticsearch_integration.api_key', $config['api_key']);
         $container->setParameter('elasticsearch_integration.client_options', $config['client_options']);
+        $container->setParameter('elasticsearch_integration.ssl_verification', $config['client_options']['sslVerification'] ?? true);
         $container->setParameter('elasticsearch_integration.index', $config['index']);
     }
 

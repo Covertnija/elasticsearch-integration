@@ -232,6 +232,7 @@ use ElasticsearchIntegration\Handler\LazyElasticsearchHandler;
 | `elasticsearch_integration.hosts` | `array<string>` | Configured host URLs |
 | `elasticsearch_integration.index` | `string` | Default index name |
 | `elasticsearch_integration.client_options` | `array` | Client builder options |
+| `elasticsearch_integration.ssl_verification` | `bool` | Whether SSL certificate verification is enabled |
 
 > **Security note**: The API key is **not** exposed as a container parameter. It is passed directly to the client factory at build time.
 
@@ -259,6 +260,7 @@ composer check
 - **API key not leaked** — the API key is never stored as a container parameter
 - **API key authentication** — use API keys instead of basic auth when possible
 - **SSL/TLS** — always use HTTPS in production (`sslVerification: true`)
+- **Self-signed certificates** — if your Elasticsearch cluster uses self-signed certificates, set `sslVerification: false` in `client_options`. This disables both peer and host verification for the HTTP transport. **Use only in trusted networks.**
 - **Network security** — restrict access to Elasticsearch via firewall rules
 - **Input validation** — sanitize all user input before sending to Elasticsearch
 
