@@ -10,9 +10,12 @@ use ElasticsearchIntegration\Factory\ElasticsearchClientFactoryInterface;
 use ElasticsearchIntegration\Factory\ElasticsearchRoundRobinClientFactory;
 use ElasticsearchIntegration\Formatter\KibanaCompatibleFormatter;
 use ElasticsearchIntegration\Handler\LazyElasticsearchHandler;
-use ElasticsearchIntegration\HttpClient\RoundRobinHttpClient;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Config\Definition\Exception\InvalidConfigurationException;
+use Symfony\Component\DependencyInjection\Argument\ServiceClosureArgument;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
+use Symfony\Component\DependencyInjection\ContainerInterface;
+use Symfony\Component\DependencyInjection\Reference;
 
 final class ElasticsearchExtensionTest extends TestCase
 {
@@ -38,12 +41,11 @@ final class ElasticsearchExtensionTest extends TestCase
             'hosts' => ['http://localhost:9200'],
         ]], $this->container);
 
-        self::assertTrue($this->container->hasDefinition('elasticsearch_integration.round_robin_http_client'));
+        self::assertFalse($this->container->hasDefinition('elasticsearch_integration.round_robin_http_client'));
         self::assertTrue($this->container->hasDefinition('elasticsearch_integration.client_factory'));
         self::assertTrue($this->container->hasDefinition('elasticsearch_integration.client'));
         self::assertTrue($this->container->hasAlias('elasticsearch.client'));
         self::assertTrue($this->container->hasAlias(Client::class));
-        self::assertTrue($this->container->hasAlias(RoundRobinHttpClient::class));
         self::assertTrue($this->container->hasAlias(ElasticsearchRoundRobinClientFactory::class));
         self::assertTrue($this->container->hasAlias(ElasticsearchClientFactoryInterface::class));
         self::assertTrue($this->container->hasDefinition('elasticsearch_integration.kibana_formatter'));
@@ -56,7 +58,6 @@ final class ElasticsearchExtensionTest extends TestCase
             'enabled' => false,
         ]], $this->container);
 
-        self::assertTrue($this->container->hasDefinition('elasticsearch_integration.round_robin_http_client'));
         self::assertTrue($this->container->hasDefinition('elasticsearch_integration.client_factory'));
         self::assertTrue($this->container->hasDefinition('elasticsearch_integration.client'));
         self::assertTrue($this->container->hasDefinition('elasticsearch_integration.kibana_formatter'));
@@ -69,13 +70,15 @@ final class ElasticsearchExtensionTest extends TestCase
             'hosts' => ['http://es1:9200', 'http://es2:9200'],
             'api_key' => 'test-key',
             'index' => 'test-index',
+            'level' => 'error',
             'client_options' => ['retries' => 3],
         ]], $this->container);
 
         self::assertTrue($this->container->getParameter('elasticsearch_integration.enabled'));
         self::assertSame(['http://es1:9200', 'http://es2:9200'], $this->container->getParameter('elasticsearch_integration.hosts'));
-        self::assertSame('test-key', $this->container->getParameter('elasticsearch_integration.api_key'));
+        self::assertFalse($this->container->hasParameter('elasticsearch_integration.api_key'));
         self::assertSame('test-index', $this->container->getParameter('elasticsearch_integration.index'));
+        self::assertSame('error', $this->container->getParameter('elasticsearch_integration.level'));
         self::assertSame(['retries' => 3], $this->container->getParameter('elasticsearch_integration.client_options'));
         self::assertSame('index', $this->container->getParameter('elasticsearch_integration.op_type'));
         self::assertSame(5.0, $this->container->getParameter('elasticsearch_integration.timeout'));
@@ -141,8 +144,23 @@ final class ElasticsearchExtensionTest extends TestCase
 
         $arguments = $definition->getArguments();
         self::assertSame('%elasticsearch_integration.hosts%', $arguments[0]);
-        self::assertSame('%elasticsearch_integration.api_key%', $arguments[1]);
-        self::assertArrayHasKey('httpClient', $arguments[2]);
+        self::assertSame('test-key', $arguments[1]);
+        self::assertSame(['retries' => 5, 'timeout' => 5.0], $arguments[2]);
+    }
+
+    public function testClientOptionsTimeoutWinsOverConfiguredTimeout(): void
+    {
+        $this->extension->load([[
+            'enabled' => true,
+            'hosts' => ['http://localhost:9200'],
+            'timeout' => 2.5,
+            'client_options' => ['timeout' => 9.0],
+        ]], $this->container);
+
+        $definition = $this->container->getDefinition('elasticsearch_integration.client');
+        $arguments = $definition->getArguments();
+
+        self::assertSame(['timeout' => 9.0], $arguments[2]);
     }
 
     public function testElasticsearchClientAliasIsPrivate(): void
@@ -174,6 +192,7 @@ final class ElasticsearchExtensionTest extends TestCase
         self::assertTrue($this->container->getParameter('elasticsearch_integration.enabled'));
         self::assertSame(['http://localhost:9200'], $this->container->getParameter('elasticsearch_integration.hosts'));
         self::assertSame('app-logs', $this->container->getParameter('elasticsearch_integration.index'));
+        self::assertSame('debug', $this->container->getParameter('elasticsearch_integration.level'));
         self::assertSame([], $this->container->getParameter('elasticsearch_integration.client_options'));
     }
 
@@ -193,45 +212,6 @@ final class ElasticsearchExtensionTest extends TestCase
         self::assertSame('custom-logs', $this->container->getParameter('elasticsearch_integration.index'));
     }
 
-    public function testRoundRobinHttpClientRegistered(): void
-    {
-        $this->extension->load([[
-            'enabled' => true,
-            'hosts' => ['http://es1:9200', 'http://es2:9200'],
-        ]], $this->container);
-
-        $definition = $this->container->getDefinition('elasticsearch_integration.round_robin_http_client');
-        $arguments = $definition->getArguments();
-
-        self::assertSame('%elasticsearch_integration.hosts%', $arguments[0]);
-        self::assertSame(['http://es1:9200', 'http://es2:9200'], $this->container->getParameter('elasticsearch_integration.hosts'));
-    }
-
-    public function testRoundRobinHttpClientAliasIsPrivate(): void
-    {
-        $this->extension->load([[
-            'enabled' => true,
-            'hosts' => ['http://localhost:9200'],
-        ]], $this->container);
-
-        $alias = $this->container->getAlias(RoundRobinHttpClient::class);
-        self::assertFalse($alias->isPublic());
-    }
-
-    public function testClientOptionsIncludeRoundRobinHttpClient(): void
-    {
-        $this->extension->load([[
-            'enabled' => true,
-            'hosts' => ['http://localhost:9200'],
-            'client_options' => ['retries' => 5],
-        ]], $this->container);
-
-        $definition = $this->container->getDefinition('elasticsearch_integration.client');
-        $arguments = $definition->getArguments();
-
-        self::assertArrayHasKey('httpClient', $arguments[2]);
-    }
-
     public function testElasticsearchClientIsNotLazy(): void
     {
         $this->extension->load([[
@@ -242,18 +222,6 @@ final class ElasticsearchExtensionTest extends TestCase
         $definition = $this->container->getDefinition('elasticsearch_integration.client');
 
         self::assertFalse($definition->isLazy());
-    }
-
-    public function testRoundRobinHttpClientIsLazy(): void
-    {
-        $this->extension->load([[
-            'enabled' => true,
-            'hosts' => ['http://localhost:9200'],
-        ]], $this->container);
-
-        $definition = $this->container->getDefinition('elasticsearch_integration.round_robin_http_client');
-
-        self::assertTrue($definition->isLazy());
     }
 
     public function testMonologHandlerRegistered(): void
@@ -277,11 +245,29 @@ final class ElasticsearchExtensionTest extends TestCase
         self::assertSame('elasticsearch', $tags['monolog.logger'][0]['channel']);
     }
 
-    public function testMonologHandlerHasOpTypeAndRetryArguments(): void
+    public function testMonologHandlerClientArgumentIsServiceClosure(): void
     {
         $this->extension->load([[
             'enabled' => true,
             'hosts' => ['http://localhost:9200'],
+        ]], $this->container);
+
+        $definition = $this->container->getDefinition('elasticsearch_integration.monolog_handler');
+        $arguments = $definition->getArguments();
+
+        self::assertInstanceOf(ServiceClosureArgument::class, $arguments[0]);
+
+        $reference = $arguments[0]->getValues()[0];
+        self::assertInstanceOf(Reference::class, $reference);
+        self::assertSame('elasticsearch_integration.client', (string) $reference);
+    }
+
+    public function testMonologHandlerHasOpTypeLevelAndRetryArguments(): void
+    {
+        $this->extension->load([[
+            'enabled' => true,
+            'hosts' => ['http://localhost:9200'],
+            'level' => 'warning',
         ]], $this->container);
 
         $definition = $this->container->getDefinition('elasticsearch_integration.monolog_handler');
@@ -294,66 +280,100 @@ final class ElasticsearchExtensionTest extends TestCase
             ],
             $arguments[1],
         );
+        self::assertSame('warning', $arguments['$level']);
         self::assertSame('%elasticsearch_integration.retry_after_seconds%', $arguments['$retryAfterSeconds']);
     }
 
-    public function testRoundRobinHttpClientHasTimeoutArgument(): void
+    public function testInvalidLiteralLevelRejectedAtLoad(): void
+    {
+        $this->expectException(InvalidConfigurationException::class);
+        $this->expectExceptionMessage('Invalid value "verbose" for "elasticsearch_integration.level"');
+
+        $this->extension->load([[
+            'enabled' => true,
+            'hosts' => ['http://localhost:9200'],
+            'level' => 'verbose',
+        ]], $this->container);
+    }
+
+    public function testUppercaseLevelAccepted(): void
+    {
+        $this->extension->load([[
+            'enabled' => true,
+            'hosts' => ['http://localhost:9200'],
+            'level' => 'INFO',
+        ]], $this->container);
+
+        self::assertSame('INFO', $this->container->getParameter('elasticsearch_integration.level'));
+    }
+
+    public function testWarningLevelAccepted(): void
+    {
+        $this->extension->load([[
+            'enabled' => true,
+            'hosts' => ['http://localhost:9200'],
+            'level' => 'warning',
+        ]], $this->container);
+
+        self::assertSame('warning', $this->container->getParameter('elasticsearch_integration.level'));
+    }
+
+    public function testEnvPlaceholderLevelAccepted(): void
+    {
+        $this->extension->load([[
+            'enabled' => true,
+            'hosts' => ['http://localhost:9200'],
+            'level' => '%env(LOG_LEVEL)%',
+        ]], $this->container);
+
+        self::assertSame('%env(LOG_LEVEL)%', $this->container->getParameter('elasticsearch_integration.level'));
+    }
+
+    public function testMonologHandlerCacheArgumentDefaultsToCacheApp(): void
     {
         $this->extension->load([[
             'enabled' => true,
             'hosts' => ['http://localhost:9200'],
         ]], $this->container);
 
-        $definition = $this->container->getDefinition('elasticsearch_integration.round_robin_http_client');
+        $definition = $this->container->getDefinition('elasticsearch_integration.monolog_handler');
         $arguments = $definition->getArguments();
 
-        self::assertSame('%elasticsearch_integration.timeout%', $arguments[4]);
+        self::assertArrayHasKey('$cache', $arguments);
+        self::assertInstanceOf(Reference::class, $arguments['$cache']);
+        self::assertSame('cache.app', (string) $arguments['$cache']);
+        self::assertSame(
+            ContainerInterface::NULL_ON_INVALID_REFERENCE,
+            $arguments['$cache']->getInvalidBehavior(),
+        );
     }
 
-    public function testSslVerificationDefaultsToTrue(): void
-    {
-        $this->extension->load([], $this->container);
-
-        self::assertTrue($this->container->getParameter('elasticsearch_integration.ssl_verification'));
-    }
-
-    public function testSslVerificationCanBeDisabled(): void
+    public function testMonologHandlerCacheArgumentAbsentWhenCachePoolNull(): void
     {
         $this->extension->load([[
             'enabled' => true,
-            'hosts' => ['https://localhost:9200'],
-            'client_options' => ['sslVerification' => false],
+            'hosts' => ['http://localhost:9200'],
+            'cache_pool' => null,
         ]], $this->container);
 
-        self::assertFalse($this->container->getParameter('elasticsearch_integration.ssl_verification'));
+        $definition = $this->container->getDefinition('elasticsearch_integration.monolog_handler');
+        $arguments = $definition->getArguments();
+
+        self::assertArrayNotHasKey('$cache', $arguments);
     }
 
-    public function testRoundRobinHttpClientReceivesSslVerificationArgument(): void
+    public function testMonologHandlerCacheArgumentUsesConfiguredPool(): void
     {
         $this->extension->load([[
             'enabled' => true,
-            'hosts' => ['https://localhost:9200'],
-            'client_options' => ['sslVerification' => false],
+            'hosts' => ['http://localhost:9200'],
+            'cache_pool' => 'my.cache_pool',
         ]], $this->container);
 
-        $definition = $this->container->getDefinition('elasticsearch_integration.round_robin_http_client');
+        $definition = $this->container->getDefinition('elasticsearch_integration.monolog_handler');
         $arguments = $definition->getArguments();
 
-        self::assertSame('%elasticsearch_integration.ssl_verification%', $arguments[3]);
-    }
-
-    public function testClientOptionsDoNotIncludeSslVerification(): void
-    {
-        $this->extension->load([[
-            'enabled' => true,
-            'hosts' => ['https://localhost:9200'],
-            'client_options' => ['sslVerification' => false],
-        ]], $this->container);
-
-        $definition = $this->container->getDefinition('elasticsearch_integration.client');
-        $arguments = $definition->getArguments();
-
-        self::assertArrayNotHasKey('sslVerification', $arguments[2]);
+        self::assertSame('my.cache_pool', (string) $arguments['$cache']);
     }
 
     public function testMonologHandlerAliasIsPrivate(): void

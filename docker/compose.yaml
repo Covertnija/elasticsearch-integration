@@ -1,0 +1,53 @@
+name: elasticsearch-integration
+
+services:
+  php:
+    build:
+      context: .
+      args:
+        PHP_VERSION: ${PHP_VERSION:-8.4}
+    container_name: elasticsearch_integration_php
+    command: ["sleep", "infinity"]
+    init: true
+    volumes:
+      - ..:/app
+      - composer-cache:/tmp/composer-cache
+    environment:
+      ELASTICSEARCH_ENABLED: "true"
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+      ELASTICSEARCH_API_KEY: ""
+      ELASTICSEARCH_INDEX: app-logs
+      ELASTICSEARCH_LIVE_TEST_HOSTS: http://elasticsearch:9200
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:${ES_VERSION:-9.5.4}
+    container_name: elasticsearch_integration_es
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      ES_JAVA_OPTS: -Xms512m -Xmx512m
+    ports:
+      - "${ES_PORT:-9200}:9200"
+    volumes:
+      - es-data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost:9200/_cluster/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:${ES_VERSION:-9.5.4}
+    container_name: elasticsearch_integration_kibana
+    profiles: ["kibana"]
+    environment:
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+    ports:
+      - "${KIBANA_PORT:-5601}:5601"
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+
+volumes:
+  composer-cache:
+  es-data:

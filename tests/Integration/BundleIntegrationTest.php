@@ -4,13 +4,17 @@ declare(strict_types=1);
 
 namespace ElasticsearchIntegration\Tests\Integration;
 
+use DateTimeImmutable;
 use Elastic\Elasticsearch\Client;
 use ElasticsearchIntegration\DependencyInjection\ElasticsearchExtension;
 use ElasticsearchIntegration\Factory\ElasticsearchClientFactoryInterface;
 use ElasticsearchIntegration\Factory\ElasticsearchRoundRobinClientFactory;
 use ElasticsearchIntegration\Formatter\KibanaCompatibleFormatter;
-use ElasticsearchIntegration\HttpClient\RoundRobinHttpClient;
+use ElasticsearchIntegration\Handler\LazyElasticsearchHandler;
+use Monolog\Level;
+use Monolog\LogRecord;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Config\Definition\Exception\InvalidConfigurationException;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\ParameterBag\EnvPlaceholderParameterBag;
 
@@ -29,7 +33,7 @@ final class BundleIntegrationTest extends TestCase
         self::assertTrue($container->has('elasticsearch_integration.client_factory'));
         self::assertTrue($container->has('elasticsearch_integration.client'));
         self::assertTrue($container->has('elasticsearch_integration.kibana_formatter'));
-        self::assertTrue($container->has('elasticsearch_integration.round_robin_http_client'));
+        self::assertFalse($container->has('elasticsearch_integration.round_robin_http_client'));
     }
 
     public function testContainerCompilesWithCustomConfig(): void
@@ -66,14 +70,6 @@ final class BundleIntegrationTest extends TestCase
         self::assertSame(ElasticsearchRoundRobinClientFactory::class, $definition->getClass());
     }
 
-    public function testRoundRobinHttpClientServiceResolvesToCorrectClass(): void
-    {
-        $container = $this->createCompiledContainer([]);
-
-        $definition = $container->getDefinition('elasticsearch_integration.round_robin_http_client');
-        self::assertSame(RoundRobinHttpClient::class, $definition->getClass());
-    }
-
     public function testKibanaFormatterReceivesConfiguredIndex(): void
     {
         $container = $this->createCompiledContainer([
@@ -97,16 +93,6 @@ final class BundleIntegrationTest extends TestCase
         self::assertSame('createClient', $factory[1]);
     }
 
-    public function testApiKeyIsRegisteredAsParameter(): void
-    {
-        $container = $this->createCompiledContainer([
-            'api_key' => 'secret-key',
-        ]);
-
-        self::assertTrue($container->hasParameter('elasticsearch_integration.api_key'));
-        self::assertSame('secret-key', $container->getParameter('elasticsearch_integration.api_key'));
-    }
-
     public function testAllAliasesArePrivate(): void
     {
         $container = $this->createCompiledContainer([]);
@@ -117,7 +103,6 @@ final class BundleIntegrationTest extends TestCase
             ElasticsearchRoundRobinClientFactory::class,
             ElasticsearchClientFactoryInterface::class,
             KibanaCompatibleFormatter::class,
-            RoundRobinHttpClient::class,
         ];
 
         foreach ($aliases as $alias) {
@@ -140,14 +125,101 @@ final class BundleIntegrationTest extends TestCase
         );
     }
 
-    public function testRoundRobinHttpClientInjectedIntoClientOptions(): void
+    public function testDisabledHandlerHandlesRecordsWithoutResolvingClient(): void
     {
-        $container = $this->createCompiledContainer([]);
+        $container = new ContainerBuilder();
+        $extension = new ElasticsearchExtension();
+        $extension->load([[
+            'enabled' => false,
+            'hosts' => [],
+        ]], $container);
 
-        $definition = $container->getDefinition('elasticsearch_integration.client');
-        $arguments = $definition->getArguments();
+        $container->setAlias('test.elasticsearch_handler', 'elasticsearch_integration.monolog_handler')
+            ->setPublic(true);
+        $container->compile();
 
-        self::assertArrayHasKey('httpClient', $arguments[2]);
+        $handler = $container->get('test.elasticsearch_handler');
+        self::assertInstanceOf(LazyElasticsearchHandler::class, $handler);
+
+        $record = new LogRecord(
+            datetime: new DateTimeImmutable(),
+            channel: 'app',
+            level: Level::Error,
+            message: 'Test message',
+        );
+
+        $handler->handle($record);
+        $handler->handleBatch([$record]);
+
+        self::assertFalse($container->initialized('elasticsearch_integration.client'));
+    }
+
+    public function testStringDisabledHandlerDoesNotResolveClient(): void
+    {
+        $container = new ContainerBuilder();
+        $extension = new ElasticsearchExtension();
+        $extension->load([[
+            'enabled' => 'false',
+            'hosts' => [],
+        ]], $container);
+
+        $container->setAlias('test.elasticsearch_handler', 'elasticsearch_integration.monolog_handler')
+            ->setPublic(true);
+        $container->compile();
+
+        $handler = $container->get('test.elasticsearch_handler');
+        self::assertInstanceOf(LazyElasticsearchHandler::class, $handler);
+
+        $record = new LogRecord(
+            datetime: new DateTimeImmutable(),
+            channel: 'app',
+            level: Level::Error,
+            message: 'Test message',
+        );
+
+        $handler->handle($record);
+        $handler->handleBatch([$record]);
+
+        self::assertFalse($container->initialized('elasticsearch_integration.client'));
+    }
+
+    public function testHandlerBuildsWithoutCacheAppService(): void
+    {
+        $container = new ContainerBuilder();
+        $extension = new ElasticsearchExtension();
+        $extension->load([[
+            'enabled' => false,
+            'hosts' => [],
+        ]], $container);
+
+        $container->setAlias('test.elasticsearch_handler', 'elasticsearch_integration.monolog_handler')
+            ->setPublic(true);
+        $container->compile();
+
+        $handler = $container->get('test.elasticsearch_handler');
+        self::assertInstanceOf(LazyElasticsearchHandler::class, $handler);
+    }
+
+    public function testContainerCompilesWithLevelEnvPlaceholder(): void
+    {
+        $container = $this->createCompiledContainerWithEnvVars(
+            [
+                'ELASTICSEARCH_ENABLED' => 'true',
+                'ELASTICSEARCH_HOSTS' => 'http://localhost:9200',
+                'ELASTICSEARCH_API_KEY' => '',
+                'ELASTICSEARCH_INDEX' => 'app_logs',
+                'LOG_LEVEL' => 'warning',
+            ],
+            [
+                'enabled' => '%env(bool:ELASTICSEARCH_ENABLED)%',
+                'hosts' => '%env(csv:ELASTICSEARCH_HOSTS)%',
+                'api_key' => '%env(default::ELASTICSEARCH_API_KEY)%',
+                'index' => '%env(ELASTICSEARCH_INDEX)%',
+                'level' => '%env(LOG_LEVEL)%',
+            ],
+        );
+
+        self::assertSame('warning', $container->getParameter('elasticsearch_integration.level'));
     }
 
     public function testContainerCompilesWithEnvVarConfig(): void
@@ -208,6 +280,39 @@ final class BundleIntegrationTest extends TestCase
         );
 
         self::assertTrue($container->hasParameter('elasticsearch_integration.enabled'));
+    }
+
+    public function testKernelPathCompilesWithLevelEnvPlaceholder(): void
+    {
+        $_ENV['LOG_LEVEL'] = 'info';
+        $_SERVER['LOG_LEVEL'] = 'info';
+
+        try {
+            $container = new ContainerBuilder(new EnvPlaceholderParameterBag());
+            $container->registerExtension($extension = new ElasticsearchExtension());
+            $container->loadFromExtension('elasticsearch_integration', [
+                'level' => '%env(LOG_LEVEL)%',
+            ]);
+            $container->compile(true);
+
+            self::assertSame('info', $container->getParameter('elasticsearch_integration.level'));
+        } finally {
+            unset($_ENV['LOG_LEVEL'], $_SERVER['LOG_LEVEL']);
+        }
+    }
+
+    public function testKernelPathRejectsLiteralInvalidLevelDuringCompile(): void
+    {
+        $container = new ContainerBuilder(new EnvPlaceholderParameterBag());
+        $container->registerExtension(new ElasticsearchExtension());
+        $container->loadFromExtension('elasticsearch_integration', [
+            'level' => 'verbose',
+        ]);
+
+        $this->expectException(InvalidConfigurationException::class);
+        $this->expectExceptionMessage('Invalid value "verbose" for "elasticsearch_integration.level"');
+
+        $container->compile();
     }
 
     /**

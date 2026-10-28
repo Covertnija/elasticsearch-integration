@@ -18,7 +18,10 @@ interface ElasticsearchClientFactoryInterface
 {
     /**
      * @param array<mixed> $hosts
-     * @param array<string, mixed> $options
+     * @param array<string, mixed> $options Supported option keys:
+     *                                      retries, sslVerification, elasticCloudId,
+     *                                      httpClient, logger, asyncHttpClient, timeout,
+     *                                      resurrectAfterSeconds
      *
      * @throws ElasticsearchConfigurationException
      * @throws AuthenticationException
