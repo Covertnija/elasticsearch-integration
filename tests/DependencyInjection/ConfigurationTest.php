@@ -33,6 +33,7 @@ final class ConfigurationTest extends TestCase
         self::assertNull($config['api_key']);
         self::assertSame('app-logs', $config['index']);
         self::assertSame([], $config['client_options']);
+        self::assertSame('debug', $config['level']);
         self::assertSame('index', $config['op_type']);
         self::assertSame(5.0, $config['timeout']);
         self::assertSame(300, $config['retry_after_seconds']);
@@ -69,6 +70,56 @@ final class ConfigurationTest extends TestCase
         );
 
         self::assertSame(['http://single-host:9200'], $config['hosts']);
+    }
+
+    public function testLevelErrorAccepted(): void
+    {
+        $config = $this->processor->processConfiguration(
+            $this->configuration,
+            [['level' => 'error']],
+        );
+
+        self::assertSame('error', $config['level']);
+    }
+
+    public function testLevelAcceptsEnvPlaceholder(): void
+    {
+        $config = $this->processor->processConfiguration(
+            $this->configuration,
+            [['level' => '%env(LOG_LEVEL)%']],
+        );
+
+        self::assertSame('%env(LOG_LEVEL)%', $config['level']);
+    }
+
+    public function testCachePoolDefaultsToCacheApp(): void
+    {
+        $config = $this->processor->processConfiguration(
+            $this->configuration,
+            [],
+        );
+
+        self::assertSame('cache.app', $config['cache_pool']);
+    }
+
+    public function testCachePoolAcceptsNull(): void
+    {
+        $config = $this->processor->processConfiguration(
+            $this->configuration,
+            [['cache_pool' => null]],
+        );
+
+        self::assertNull($config['cache_pool']);
+    }
+
+    public function testCachePoolAcceptsCustomServiceId(): void
+    {
+        $config = $this->processor->processConfiguration(
+            $this->configuration,
+            [['cache_pool' => 'my.cache_pool']],
+        );
+
+        self::assertSame('my.cache_pool', $config['cache_pool']);
     }
 
     public function testOpTypeCreateAccepted(): void

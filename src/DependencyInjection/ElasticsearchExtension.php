@@ -9,13 +9,17 @@ use ElasticsearchIntegration\Factory\ElasticsearchClientFactoryInterface;
 use ElasticsearchIntegration\Factory\ElasticsearchRoundRobinClientFactory;
 use ElasticsearchIntegration\Formatter\KibanaCompatibleFormatter;
 use ElasticsearchIntegration\Handler\LazyElasticsearchHandler;
-use ElasticsearchIntegration\HttpClient\RoundRobinHttpClient;
+use ElasticsearchIntegration\Util\HostNormalizer;
 use InvalidArgumentException;
+use Monolog\Logger;
+use Symfony\Component\Config\Definition\Exception\InvalidConfigurationException;
+use Symfony\Component\DependencyInjection\Argument\ServiceClosureArgument;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\DependencyInjection\Definition;
 use Symfony\Component\DependencyInjection\Extension\Extension;
 use Symfony\Component\DependencyInjection\Reference;
+use Throwable;
 
 /**
  * Dependency injection extension for Elasticsearch integration bundle.
@@ -34,39 +38,39 @@ final class ElasticsearchExtension extends Extension
     public function load(array $configs, ContainerBuilder $container): void
     {
         $configuration = new Configuration();
-        /** @var array{enabled: bool|string, hosts: array<mixed>, api_key: string|null, index: string, client_options: array<string, mixed>, op_type: string, timeout: float, retry_after_seconds: int} $processedConfig */
+        /** @var array{enabled: bool|string, hosts: array<mixed>, api_key: string|null, index: string, client_options: array<string, mixed>, level: string, op_type: string, timeout: float, retry_after_seconds: int, cache_pool: string|null} $processedConfig */
         $processedConfig = $this->processConfiguration($configuration, $configs);
 
+        $this->validateLevel($container, $processedConfig['level']);
+
         $this->registerParameters($container, $processedConfig);
-        $this->registerRoundRobinHttpClient($container);
         $this->registerClientFactory($container);
-        $this->registerElasticsearchClient($container);
+        $this->registerElasticsearchClient($container, $processedConfig);
         $this->registerKibanaFormatter($container);
-        $this->registerMonologHandler($container);
+        $this->registerMonologHandler($container, $processedConfig);
     }
 
-    private function registerRoundRobinHttpClient(ContainerBuilder $container): void
+    /**
+     * Validates a literal level the same way the handler does at runtime;
+     * env placeholders are resolved later and can not be checked here.
+     *
+     * @throws InvalidConfigurationException
+     */
+    private function validateLevel(ContainerBuilder $container, mixed $level): void
     {
-        $definition = new Definition(RoundRobinHttpClient::class);
-        $definition->setArguments([
-            '%elasticsearch_integration.hosts%',
-            null,
-            new Reference('logger', ContainerInterface::NULL_ON_INVALID_REFERENCE),
-            '%elasticsearch_integration.ssl_verification%',
-            '%elasticsearch_integration.timeout%',
-        ]);
-        $definition->addTag('monolog.logger', ['channel' => 'elasticsearch']);
-        $definition->setLazy(true);
+        if (! is_string($level)
+            || str_contains($level, '%env(')
+            || $container->resolveEnvPlaceholders($level) !== $level
+        ) {
+            return;
+        }
 
-        $container->setDefinition(
-            'elasticsearch_integration.round_robin_http_client',
-            $definition,
-        );
-
-        $container->setAlias(
-            RoundRobinHttpClient::class,
-            'elasticsearch_integration.round_robin_http_client',
-        )->setPublic(false);
+        try {
+            // @phpstan-ignore argument.type
+            Logger::toMonologLevel($level);
+        } catch (Throwable) {
+            throw new InvalidConfigurationException(sprintf('Invalid value "%s" for "elasticsearch_integration.level"; expected one of debug, info, notice, warning, error, critical, alert, emergency.', $level));
+        }
     }
 
     private function registerClientFactory(ContainerBuilder $container): void
@@ -93,7 +97,10 @@ final class ElasticsearchExtension extends Extension
         )->setPublic(false);
     }
 
-    private function registerElasticsearchClient(ContainerBuilder $container): void
+    /**
+     * @param array{enabled: bool|string, hosts: array<mixed>, api_key: string|null, index: string, client_options: array<string, mixed>, level: string, op_type: string, timeout: float, retry_after_seconds: int, cache_pool: string|null} $config
+     */
+    private function registerElasticsearchClient(ContainerBuilder $container, array $config): void
     {
         $clientDefinition = new Definition(Client::class);
         $clientDefinition->setFactory([
@@ -103,10 +110,8 @@ final class ElasticsearchExtension extends Extension
 
         $clientDefinition->setArguments([
             '%elasticsearch_integration.hosts%',
-            '%elasticsearch_integration.api_key%',
-            [
-                'httpClient' => new Reference('elasticsearch_integration.round_robin_http_client'),
-            ],
+            $config['api_key'],
+            $config['client_options'] + ['timeout' => $config['timeout']],
         ]);
 
         $container->setDefinition(
@@ -141,11 +146,14 @@ final class ElasticsearchExtension extends Extension
         )->setPublic(false);
     }
 
-    private function registerMonologHandler(ContainerBuilder $container): void
+    /**
+     * @param array{enabled: bool|string, hosts: array<mixed>, api_key: string|null, index: string, client_options: array<string, mixed>, level: string, op_type: string, timeout: float, retry_after_seconds: int, cache_pool: string|null} $config
+     */
+    private function registerMonologHandler(ContainerBuilder $container, array $config): void
     {
         $handlerDefinition = new Definition(LazyElasticsearchHandler::class);
         $handlerDefinition->setArguments([
-            new Reference('elasticsearch_integration.client'),
+            new ServiceClosureArgument(new Reference('elasticsearch_integration.client')),
             [
                 'index' => '%elasticsearch_integration.index%',
                 'op_type' => '%elasticsearch_integration.op_type%',
@@ -154,7 +162,15 @@ final class ElasticsearchExtension extends Extension
             new Reference('elasticsearch_integration.kibana_formatter'),
             new Reference('logger', ContainerInterface::NULL_ON_INVALID_REFERENCE),
         ]);
+        $handlerDefinition->setArgument('$level', $config['level']);
         $handlerDefinition->setArgument('$retryAfterSeconds', '%elasticsearch_integration.retry_after_seconds%');
+
+        if ($config['cache_pool'] !== null) {
+            $handlerDefinition->setArgument('$cache', new Reference(
+                $config['cache_pool'],
+                ContainerInterface::NULL_ON_INVALID_REFERENCE,
+            ));
+        }
         $handlerDefinition->addTag('monolog.logger', ['channel' => 'elasticsearch']);
 
         $container->setDefinition(
@@ -169,16 +185,15 @@ final class ElasticsearchExtension extends Extension
     }
 
     /**
-     * @param array{enabled: bool|string, hosts: array<mixed>, api_key: string|null, index: string, client_options: array<string, mixed>, op_type: string, timeout: float, retry_after_seconds: int} $config
+     * @param array{enabled: bool|string, hosts: array<mixed>, api_key: string|null, index: string, client_options: array<string, mixed>, level: string, op_type: string, timeout: float, retry_after_seconds: int, cache_pool: string|null} $config
      */
     private function registerParameters(ContainerBuilder $container, array $config): void
     {
         $container->setParameter('elasticsearch_integration.enabled', $config['enabled']);
-        $container->setParameter('elasticsearch_integration.hosts', ElasticsearchConfig::normalizeHosts($config['hosts']));
-        $container->setParameter('elasticsearch_integration.api_key', $config['api_key']);
+        $container->setParameter('elasticsearch_integration.hosts', HostNormalizer::normalize($config['hosts']));
         $container->setParameter('elasticsearch_integration.client_options', $config['client_options']);
-        $container->setParameter('elasticsearch_integration.ssl_verification', (bool) ($config['client_options']['sslVerification'] ?? true));
         $container->setParameter('elasticsearch_integration.index', $config['index']);
+        $container->setParameter('elasticsearch_integration.level', $config['level']);
         $container->setParameter('elasticsearch_integration.op_type', $config['op_type']);
         $container->setParameter('elasticsearch_integration.timeout', $config['timeout']);
         $container->setParameter('elasticsearch_integration.retry_after_seconds', $config['retry_after_seconds']);

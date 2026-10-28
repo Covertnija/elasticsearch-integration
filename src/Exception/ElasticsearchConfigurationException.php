@@ -19,6 +19,14 @@ final class ElasticsearchConfigurationException extends InvalidArgumentException
         return new self('At least one Elasticsearch host must be provided');
     }
 
+    public static function invalidHost(string $type): self
+    {
+        return new self(sprintf(
+            'Invalid Elasticsearch host: expected string, got "%s"',
+            $type,
+        ));
+    }
+
     public static function invalidClientOption(string $option, string $reason): self
     {
         return new self(sprintf(

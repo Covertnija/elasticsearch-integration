@@ -12,7 +12,6 @@ composer.phar
 
 ### PHPStan ###
 .phpstan/
-phpstan.neon.dist
 
 ### IDE ###
 .idea/
@@ -41,5 +40,3 @@ Thumbs.db
 coverage/
 clover.xml
 
-### Docker ###
-docker/

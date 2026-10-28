@@ -7,11 +7,16 @@ namespace ElasticsearchIntegration\Factory;
 use Elastic\Elasticsearch\Client;
 use Elastic\Elasticsearch\ClientBuilder;
 use Elastic\Elasticsearch\Exception\AuthenticationException;
+use Elastic\Transport\NodePool\Selector\RoundRobin;
+use Elastic\Transport\NodePool\SimpleNodePool;
 use ElasticsearchIntegration\Exception\ElasticsearchConfigurationException;
+use ElasticsearchIntegration\NodePool\TimedResurrect;
+use ElasticsearchIntegration\Util\HostNormalizer;
 use Http\Client\HttpAsyncClient;
 use Psr\Http\Client\ClientInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
+use Symfony\Component\HttpClient\Psr18Client;
 
 /**
  * Factory for creating Elasticsearch clients with round-robin load balancing.
@@ -29,6 +34,8 @@ final class ElasticsearchRoundRobinClientFactory implements ElasticsearchClientF
         'httpClient',
         'logger',
         'asyncHttpClient',
+        'timeout',
+        'resurrectAfterSeconds',
     ];
 
     private LoggerInterface $logger;
@@ -50,7 +57,7 @@ final class ElasticsearchRoundRobinClientFactory implements ElasticsearchClientF
         ?string $apiKey = null,
         array $options = [],
     ): Client {
-        $hosts = self::normalizeHosts($hosts);
+        $hosts = HostNormalizer::normalize($hosts);
 
         if ($hosts === []) {
             throw ElasticsearchConfigurationException::emptyHosts();
@@ -67,9 +74,38 @@ final class ElasticsearchRoundRobinClientFactory implements ElasticsearchClientF
             $this->logger->debug('API key authentication configured for Elasticsearch client');
         }
 
-        $this->applyClientOptions($clientBuilder, $options);
+        $retries = null;
+        $timeout = null;
+        $resurrectAfterSeconds = 60;
+        $hasCustomHttpClient = isset($options['httpClient']);
 
-        return $clientBuilder->build();
+        $this->applyClientOptions($clientBuilder, $options, $retries, $timeout, $resurrectAfterSeconds);
+
+        $clientBuilder->setNodePool(new SimpleNodePool(
+            new RoundRobin(),
+            new TimedResurrect($resurrectAfterSeconds),
+        ));
+
+        if (! $hasCustomHttpClient) {
+            $clientBuilder->setHttpClient(new Psr18Client());
+
+            if ($timeout !== null) {
+                $clientBuilder->setHttpClientOptions([
+                    'timeout' => $timeout,
+                    'max_duration' => $timeout,
+                ]);
+            }
+        } elseif ($timeout !== null) {
+            $this->logger->warning('timeout option ignored because a custom httpClient is configured');
+        }
+
+        $client = $clientBuilder->build();
+
+        if ($retries !== null) {
+            $client->getTransport()->setRetries($retries);
+        }
+
+        return $client;
     }
 
     /**
@@ -77,20 +113,27 @@ final class ElasticsearchRoundRobinClientFactory implements ElasticsearchClientF
      *
      * @throws ElasticsearchConfigurationException
      */
-    private function applyClientOptions(ClientBuilder $clientBuilder, array $options): void
-    {
+    private function applyClientOptions(
+        ClientBuilder $clientBuilder,
+        array $options,
+        ?int &$retries,
+        ?float &$timeout,
+        int &$resurrectAfterSeconds,
+    ): void {
         foreach ($options as $option => $value) {
             if ($value === null) {
                 continue;
             }
 
             match ($option) {
-                'retries' => $clientBuilder->setRetries($this->validateInt($value, $option)),
+                'retries' => $retries = $this->validateNonNegativeInt($value, $option),
                 'sslVerification' => $clientBuilder->setSSLVerification($this->validateBool($value, $option)),
                 'elasticCloudId' => $clientBuilder->setElasticCloudId($this->validateString($value, $option)),
                 'httpClient' => $clientBuilder->setHttpClient($this->validateHttpClient($value, $option)),
                 'logger' => $clientBuilder->setLogger($this->validateLogger($value, $option)),
                 'asyncHttpClient' => $clientBuilder->setAsyncHttpClient($this->validateAsyncHttpClient($value, $option)),
+                'timeout' => $timeout = $this->validateTimeout($value),
+                'resurrectAfterSeconds' => $resurrectAfterSeconds = $this->validateNonNegativeInt($value, $option),
                 default => $this->logger->warning('Unsupported client option ignored', [
                     'option' => $option,
                     'supported_options' => self::SUPPORTED_OPTIONS,
@@ -102,13 +145,31 @@ final class ElasticsearchRoundRobinClientFactory implements ElasticsearchClientF
     /**
      * @throws ElasticsearchConfigurationException
      */
-    private function validateInt(mixed $value, string $option): int
+    private function validateNonNegativeInt(mixed $value, string $option): int
     {
-        if (! is_numeric($value)) {
-            throw ElasticsearchConfigurationException::invalidClientOption($option, 'expected numeric value');
+        if (! is_int($value) && ! (is_string($value) && ctype_digit($value)) || (int) $value < 0) {
+            throw ElasticsearchConfigurationException::invalidClientOption($option, 'expected integer value >= 0');
         }
 
         return (int) $value;
+    }
+
+    /**
+     * @throws ElasticsearchConfigurationException
+     */
+    private function validateTimeout(mixed $value): float
+    {
+        if (! is_numeric($value)) {
+            throw ElasticsearchConfigurationException::invalidClientOption('timeout', 'expected numeric value');
+        }
+
+        $timeout = (float) $value;
+
+        if ($timeout <= 0.0) {
+            throw ElasticsearchConfigurationException::invalidClientOption('timeout', 'expected value > 0');
+        }
+
+        return $timeout;
     }
 
     /**
@@ -169,23 +230,5 @@ final class ElasticsearchRoundRobinClientFactory implements ElasticsearchClientF
         }
 
         return $value;
-    }
-
-    /**
-     * Flattens nested host arrays that may result from env var processors like %env(csv:...)%.
-     *
-     * @param array<mixed> $hosts
-     *
-     * @return array<string>
-     */
-    private static function normalizeHosts(array $hosts): array
-    {
-        $normalized = [];
-
-        array_walk_recursive($hosts, static function (string|int|float|bool $host) use (&$normalized): void {
-            $normalized[] = (string) $host;
-        });
-
-        return array_values(array_filter($normalized, static fn (string $host): bool => $host !== ''));
     }
 }
