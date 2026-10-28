@@ -34,7 +34,13 @@ final class BulkResponseAwareElasticsearchHandler extends ElasticsearchHandler
         $firstType = 'unknown';
         $firstReason = '';
 
-        foreach ($responses['items'] ?? [] as $item) {
+        $items = $responses['items'] ?? [];
+
+        if (! is_iterable($items)) {
+            $items = [];
+        }
+
+        foreach ($items as $item) {
             if (! is_array($item)) {
                 continue;
             }
@@ -45,7 +51,8 @@ final class BulkResponseAwareElasticsearchHandler extends ElasticsearchHandler
                 continue;
             }
 
-            $status = (int) ($result['status'] ?? 0);
+            $rawStatus = $result['status'] ?? 0;
+            $status = is_numeric($rawStatus) ? (int) $rawStatus : 0;
             $error = $result['error'];
 
             if (is_array($error)) {
