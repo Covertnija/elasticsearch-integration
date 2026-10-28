@@ -77,6 +77,24 @@ final class ElasticsearchExtensionTest extends TestCase
         self::assertSame('test-key', $this->container->getParameter('elasticsearch_integration.api_key'));
         self::assertSame('test-index', $this->container->getParameter('elasticsearch_integration.index'));
         self::assertSame(['retries' => 3], $this->container->getParameter('elasticsearch_integration.client_options'));
+        self::assertSame('index', $this->container->getParameter('elasticsearch_integration.op_type'));
+        self::assertSame(5.0, $this->container->getParameter('elasticsearch_integration.timeout'));
+        self::assertSame(300, $this->container->getParameter('elasticsearch_integration.retry_after_seconds'));
+    }
+
+    public function testFailSafeParametersRegistered(): void
+    {
+        $this->extension->load([[
+            'enabled' => true,
+            'hosts' => ['http://es1:9200'],
+            'op_type' => 'create',
+            'timeout' => 2.5,
+            'retry_after_seconds' => 60,
+        ]], $this->container);
+
+        self::assertSame('create', $this->container->getParameter('elasticsearch_integration.op_type'));
+        self::assertSame(2.5, $this->container->getParameter('elasticsearch_integration.timeout'));
+        self::assertSame(60, $this->container->getParameter('elasticsearch_integration.retry_after_seconds'));
     }
 
     public function testClientFactoryHasLoggerArgument(): void
@@ -257,6 +275,39 @@ final class ElasticsearchExtensionTest extends TestCase
         $tags = $definition->getTags();
         self::assertArrayHasKey('monolog.logger', $tags);
         self::assertSame('elasticsearch', $tags['monolog.logger'][0]['channel']);
+    }
+
+    public function testMonologHandlerHasOpTypeAndRetryArguments(): void
+    {
+        $this->extension->load([[
+            'enabled' => true,
+            'hosts' => ['http://localhost:9200'],
+        ]], $this->container);
+
+        $definition = $this->container->getDefinition('elasticsearch_integration.monolog_handler');
+        $arguments = $definition->getArguments();
+
+        self::assertSame(
+            [
+                'index' => '%elasticsearch_integration.index%',
+                'op_type' => '%elasticsearch_integration.op_type%',
+            ],
+            $arguments[1],
+        );
+        self::assertSame('%elasticsearch_integration.retry_after_seconds%', $arguments['$retryAfterSeconds']);
+    }
+
+    public function testRoundRobinHttpClientHasTimeoutArgument(): void
+    {
+        $this->extension->load([[
+            'enabled' => true,
+            'hosts' => ['http://localhost:9200'],
+        ]], $this->container);
+
+        $definition = $this->container->getDefinition('elasticsearch_integration.round_robin_http_client');
+        $arguments = $definition->getArguments();
+
+        self::assertSame('%elasticsearch_integration.timeout%', $arguments[4]);
     }
 
     public function testSslVerificationDefaultsToTrue(): void

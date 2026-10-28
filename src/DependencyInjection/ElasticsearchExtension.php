@@ -34,7 +34,7 @@ final class ElasticsearchExtension extends Extension
     public function load(array $configs, ContainerBuilder $container): void
     {
         $configuration = new Configuration();
-        /** @var array{enabled: bool|string, hosts: array<mixed>, api_key: string|null, index: string, client_options: array<string, mixed>} $processedConfig */
+        /** @var array{enabled: bool|string, hosts: array<mixed>, api_key: string|null, index: string, client_options: array<string, mixed>, op_type: string, timeout: float, retry_after_seconds: int} $processedConfig */
         $processedConfig = $this->processConfiguration($configuration, $configs);
 
         $this->registerParameters($container, $processedConfig);
@@ -53,6 +53,7 @@ final class ElasticsearchExtension extends Extension
             null,
             new Reference('logger', ContainerInterface::NULL_ON_INVALID_REFERENCE),
             '%elasticsearch_integration.ssl_verification%',
+            '%elasticsearch_integration.timeout%',
         ]);
         $definition->addTag('monolog.logger', ['channel' => 'elasticsearch']);
         $definition->setLazy(true);
@@ -145,11 +146,15 @@ final class ElasticsearchExtension extends Extension
         $handlerDefinition = new Definition(LazyElasticsearchHandler::class);
         $handlerDefinition->setArguments([
             new Reference('elasticsearch_integration.client'),
-            ['index' => '%elasticsearch_integration.index%'],
+            [
+                'index' => '%elasticsearch_integration.index%',
+                'op_type' => '%elasticsearch_integration.op_type%',
+            ],
             '%elasticsearch_integration.enabled%',
             new Reference('elasticsearch_integration.kibana_formatter'),
             new Reference('logger', ContainerInterface::NULL_ON_INVALID_REFERENCE),
         ]);
+        $handlerDefinition->setArgument('$retryAfterSeconds', '%elasticsearch_integration.retry_after_seconds%');
         $handlerDefinition->addTag('monolog.logger', ['channel' => 'elasticsearch']);
 
         $container->setDefinition(
@@ -164,7 +169,7 @@ final class ElasticsearchExtension extends Extension
     }
 
     /**
-     * @param array{enabled: bool|string, hosts: array<mixed>, api_key: string|null, index: string, client_options: array<string, mixed>} $config
+     * @param array{enabled: bool|string, hosts: array<mixed>, api_key: string|null, index: string, client_options: array<string, mixed>, op_type: string, timeout: float, retry_after_seconds: int} $config
      */
     private function registerParameters(ContainerBuilder $container, array $config): void
     {
@@ -174,6 +179,9 @@ final class ElasticsearchExtension extends Extension
         $container->setParameter('elasticsearch_integration.client_options', $config['client_options']);
         $container->setParameter('elasticsearch_integration.ssl_verification', (bool) ($config['client_options']['sslVerification'] ?? true));
         $container->setParameter('elasticsearch_integration.index', $config['index']);
+        $container->setParameter('elasticsearch_integration.op_type', $config['op_type']);
+        $container->setParameter('elasticsearch_integration.timeout', $config['timeout']);
+        $container->setParameter('elasticsearch_integration.retry_after_seconds', $config['retry_after_seconds']);
     }
 
     public function getAlias(): string

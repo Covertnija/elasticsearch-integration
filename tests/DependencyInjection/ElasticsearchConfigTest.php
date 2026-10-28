@@ -25,6 +25,9 @@ final class ElasticsearchConfigTest extends TestCase
         self::assertSame('test-key', $config->apiKey);
         self::assertSame('test-index', $config->index);
         self::assertSame(['retries' => 3], $config->clientOptions);
+        self::assertSame('index', $config->opType);
+        self::assertSame(5.0, $config->timeout);
+        self::assertSame(300, $config->retryAfterSeconds);
     }
 
     public function testFromArrayWithNullApiKey(): void
@@ -105,6 +108,24 @@ final class ElasticsearchConfigTest extends TestCase
         ]);
 
         self::assertSame(['http://es1:9200', 'http://es2:9200', 'http://es3:9200'], $config->hosts);
+    }
+
+    public function testFromArrayWithNewOptions(): void
+    {
+        $config = ElasticsearchConfig::fromArray([
+            'enabled' => true,
+            'hosts' => ['http://es1:9200'],
+            'api_key' => null,
+            'index' => 'app-logs',
+            'client_options' => [],
+            'op_type' => 'create',
+            'timeout' => 2.5,
+            'retry_after_seconds' => 60,
+        ]);
+
+        self::assertSame('create', $config->opType);
+        self::assertSame(2.5, $config->timeout);
+        self::assertSame(60, $config->retryAfterSeconds);
     }
 
     public function testDtoIsReadonly(): void

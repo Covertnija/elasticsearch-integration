@@ -60,7 +60,7 @@ final class ElasticsearchClientFactoryIntegrationTest extends TestCase
 
     public function testCreateClientWithHttpClientOption(): void
     {
-        $httpClient = $this->createMock(ClientInterface::class);
+        $httpClient = self::createStub(ClientInterface::class);
 
         $this->factory->createClient(
             ['http://localhost:9200'],
@@ -74,7 +74,7 @@ final class ElasticsearchClientFactoryIntegrationTest extends TestCase
 
     public function testCreateClientWithLoggerOption(): void
     {
-        $logger = $this->createMock(LoggerInterface::class);
+        $logger = self::createStub(LoggerInterface::class);
 
         $this->factory->createClient(
             ['http://localhost:9200'],
@@ -88,7 +88,7 @@ final class ElasticsearchClientFactoryIntegrationTest extends TestCase
 
     public function testCreateClientWithAsyncHttpClientOption(): void
     {
-        $asyncClient = $this->createMock(HttpAsyncClient::class);
+        $asyncClient = self::createStub(HttpAsyncClient::class);
 
         $this->factory->createClient(
             ['http://localhost:9200'],
@@ -166,7 +166,7 @@ final class ElasticsearchClientFactoryIntegrationTest extends TestCase
 
     public function testCreateClientWithMultipleCombinedOptions(): void
     {
-        $logger = $this->createMock(LoggerInterface::class);
+        $logger = self::createStub(LoggerInterface::class);
 
         $this->factory->createClient(
             ['http://localhost:9200'],

@@ -38,7 +38,6 @@ final class ElasticsearchIntegrationBundleTest extends TestCase
         $bundle = new ElasticsearchIntegrationBundle();
         $extension = $bundle->getContainerExtension();
 
-        self::assertNotNull($extension);
         self::assertSame('elasticsearch_integration', $extension->getAlias());
     }
 }

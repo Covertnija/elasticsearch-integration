@@ -18,6 +18,9 @@ final readonly class ElasticsearchConfig
      * @param string|null $apiKey Optional API key for authentication
      * @param string $index Default Elasticsearch index name
      * @param array<string, mixed> $clientOptions Additional client options
+     * @param string $opType Bulk action type; Elasticsearch data streams require "create"
+     * @param float $timeout HTTP timeout in seconds for Elasticsearch requests
+     * @param int $retryAfterSeconds Seconds to stop sending logs after a failure
      */
     public function __construct(
         public bool $enabled,
@@ -25,11 +28,14 @@ final readonly class ElasticsearchConfig
         public ?string $apiKey,
         public string $index,
         public array $clientOptions,
+        public string $opType = 'index',
+        public float $timeout = 5.0,
+        public int $retryAfterSeconds = 300,
     ) {
     }
 
     /**
-     * @param array{enabled: bool|string, hosts: array<mixed>, api_key: string|null, index: string, client_options: array<string, mixed>} $config
+     * @param array{enabled: bool|string, hosts: array<mixed>, api_key: string|null, index: string, client_options: array<string, mixed>, op_type?: string, timeout?: float, retry_after_seconds?: int} $config
      */
     public static function fromArray(array $config): self
     {
@@ -39,6 +45,9 @@ final readonly class ElasticsearchConfig
             apiKey: $config['api_key'],
             index: $config['index'],
             clientOptions: $config['client_options'],
+            opType: $config['op_type'] ?? 'index',
+            timeout: $config['timeout'] ?? 5.0,
+            retryAfterSeconds: $config['retry_after_seconds'] ?? 300,
         );
     }
 

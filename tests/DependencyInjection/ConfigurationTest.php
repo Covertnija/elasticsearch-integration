@@ -6,6 +6,7 @@ namespace ElasticsearchIntegration\Tests\DependencyInjection;
 
 use ElasticsearchIntegration\DependencyInjection\Configuration;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Config\Definition\Exception\InvalidConfigurationException;
 use Symfony\Component\Config\Definition\Processor;
 
 final class ConfigurationTest extends TestCase
@@ -32,6 +33,9 @@ final class ConfigurationTest extends TestCase
         self::assertNull($config['api_key']);
         self::assertSame('app-logs', $config['index']);
         self::assertSame([], $config['client_options']);
+        self::assertSame('index', $config['op_type']);
+        self::assertSame(5.0, $config['timeout']);
+        self::assertSame(300, $config['retry_after_seconds']);
     }
 
     public function testCustomConfiguration(): void
@@ -65,6 +69,46 @@ final class ConfigurationTest extends TestCase
         );
 
         self::assertSame(['http://single-host:9200'], $config['hosts']);
+    }
+
+    public function testOpTypeCreateAccepted(): void
+    {
+        $config = $this->processor->processConfiguration(
+            $this->configuration,
+            [['op_type' => 'create']],
+        );
+
+        self::assertSame('create', $config['op_type']);
+    }
+
+    public function testInvalidOpTypeRejected(): void
+    {
+        $this->expectException(InvalidConfigurationException::class);
+
+        $this->processor->processConfiguration(
+            $this->configuration,
+            [['op_type' => 'delete']],
+        );
+    }
+
+    public function testNegativeRetryAfterSecondsRejected(): void
+    {
+        $this->expectException(InvalidConfigurationException::class);
+
+        $this->processor->processConfiguration(
+            $this->configuration,
+            [['retry_after_seconds' => -1]],
+        );
+    }
+
+    public function testZeroRetryAfterSecondsAccepted(): void
+    {
+        $config = $this->processor->processConfiguration(
+            $this->configuration,
+            [['retry_after_seconds' => 0]],
+        );
+
+        self::assertSame(0, $config['retry_after_seconds']);
     }
 
     public function testNestedArrayHostsAcceptedByConfigTree(): void

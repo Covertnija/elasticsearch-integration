@@ -17,8 +17,8 @@ A Symfony bundle providing an Elasticsearch client with round-robin load balanci
 
 ## Requirements
 
-- PHP 8.2+
-- Symfony 6.4+ or 7.x
+- PHP 8.4+
+- Symfony 6.4, 7.x or 8.x
 - Elasticsearch 8.x+
 - `elasticsearch/elasticsearch` ^9.2
 
@@ -74,6 +74,9 @@ elasticsearch_integration:
     api_key: '%env(default::ELASTICSEARCH_API_KEY)%'
     index: '%env(ELASTICSEARCH_INDEX)%'
     client_options: {}
+    op_type: 'index'                    # use 'create' for data streams
+    timeout: 5.0                        # HTTP timeout in seconds
+    retry_after_seconds: 300            # pause sending after a failure
 ```
 
 ## Configuration Reference
@@ -99,6 +102,18 @@ elasticsearch_integration:
         retries: 3                # Number of retries on failure
         sslVerification: true     # Enable/disable SSL certificate verification
         # elasticCloudId: '...'   # Elastic Cloud deployment ID
+
+    # Bulk action type: 'index' or 'create' (default: 'index')
+    # Elasticsearch data streams require 'create'
+    op_type: 'index'
+
+    # HTTP timeout in seconds for Elasticsearch requests — applies to both
+    # the idle timeout and the total request duration (default: 5.0)
+    timeout: 5.0
+
+    # After a send failure, pause sending logs to Elasticsearch for this many
+    # seconds; set to 0 to retry on every record (default: 300)
+    retry_after_seconds: 300
 ```
 
 ## Usage
@@ -159,6 +174,8 @@ The bundle registers a `LazyElasticsearchHandler` that sends logs to Elasticsear
 - **Respects the `enabled` flag** — silently discards logs when Elasticsearch is disabled
 - **Auto-excludes the `elasticsearch` channel** — prevents circular logging where the handler's own ES requests generate logs that feed back into itself
 - **Applies KibanaCompatibleFormatter** automatically
+- **Fail-safe** — Elasticsearch errors/timeouts never propagate; the failure is logged on the `elasticsearch` channel and sending is paused for `retry_after_seconds`
+- **Data stream support** — set `op_type: 'create'` when indexing into a data stream (Elasticsearch rejects `index` operations on data streams)
 
 To use it, reference the bundle's handler service in your monolog config:
 
@@ -233,6 +250,9 @@ use ElasticsearchIntegration\Handler\LazyElasticsearchHandler;
 | `elasticsearch_integration.index` | `string` | Default index name |
 | `elasticsearch_integration.client_options` | `array` | Client builder options |
 | `elasticsearch_integration.ssl_verification` | `bool` | Whether SSL certificate verification is enabled |
+| `elasticsearch_integration.op_type` | `string` | Bulk action type (`index` or `create`) |
+| `elasticsearch_integration.timeout` | `float` | HTTP timeout in seconds for ES requests |
+| `elasticsearch_integration.retry_after_seconds` | `int` | Pause in seconds after a send failure |
 
 > **Security note**: The API key is **not** exposed as a container parameter. It is passed directly to the client factory at build time.
 

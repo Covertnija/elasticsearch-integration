@@ -21,7 +21,6 @@ final class Configuration implements ConfigurationInterface
         $treeBuilder = new TreeBuilder('elasticsearch_integration');
         $rootNode = $treeBuilder->getRootNode();
 
-        /** @phpstan-ignore class.notFound */
         $rootNode
             ->children()
                 ->scalarNode('enabled')
@@ -50,6 +49,21 @@ final class Configuration implements ConfigurationInterface
                     ->normalizeKeys(false)
                     ->variablePrototype()
                     ->end()
+                ->end()
+                ->enumNode('op_type')
+                    ->values(['index', 'create'])
+                    ->defaultValue('index')
+                    ->info('Bulk action type; Elasticsearch data streams require "create"')
+                ->end()
+                ->floatNode('timeout')
+                    ->min(0.1)
+                    ->defaultValue(5.0)
+                    ->info('HTTP timeout in seconds for Elasticsearch requests (idle and total)')
+                ->end()
+                ->integerNode('retry_after_seconds')
+                    ->min(0)
+                    ->defaultValue(300)
+                    ->info('Seconds to stop sending logs after a failure')
                 ->end()
             ->end()
         ;

@@ -11,6 +11,7 @@ use Monolog\Handler\AbstractProcessingHandler;
 use Monolog\Handler\ElasticsearchHandler;
 use Monolog\Level;
 use Monolog\LogRecord;
+use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Throwable;
 
@@ -21,6 +22,11 @@ use Throwable;
  * the ElasticsearchHandler's ghost proxy triggers getDefaultFormatter() before
  * $this->options is populated. It also respects the enabled flag to silently
  * discard logs when Elasticsearch is disabled.
+ *
+ * The handler is fail-safe: when sending to Elasticsearch fails, the exception
+ * is logged and suppressed, and sending is paused for the configured retry
+ * window so that a broken Elasticsearch can never break the application —
+ * even when records are flushed from BufferHandler::close() or reset().
  */
 class LazyElasticsearchHandler extends AbstractProcessingHandler
 {
@@ -29,6 +35,10 @@ class LazyElasticsearchHandler extends AbstractProcessingHandler
     private ?ElasticsearchHandler $innerHandler = null;
 
     private bool $initializing = false;
+
+    private ?int $suspendedUntil = null;
+
+    private bool $sending = false;
 
     /**
      * @param array{index?: string, type?: string, ignore_error?: bool, op_type?: 'create'|'index'} $options
@@ -41,6 +51,8 @@ class LazyElasticsearchHandler extends AbstractProcessingHandler
         private readonly ?LoggerInterface $logger = null,
         int|string|Level $level = Level::Debug,
         bool $bubble = true,
+        private readonly int $retryAfterSeconds = 300,
+        private readonly ?ClockInterface $clock = null,
     ) {
         parent::__construct($level, $bubble);
     }
@@ -65,7 +77,7 @@ class LazyElasticsearchHandler extends AbstractProcessingHandler
             return;
         }
 
-        $handler->handle($record);
+        $this->send(static fn (): bool => $handler->handle($record));
     }
 
     public function handleBatch(array $records): void
@@ -88,7 +100,9 @@ class LazyElasticsearchHandler extends AbstractProcessingHandler
             return;
         }
 
-        $handler->handleBatch($records);
+        $this->send(static function () use ($handler, $records): void {
+            $handler->handleBatch($records);
+        });
     }
 
     public function getFormatter(): FormatterInterface
@@ -99,6 +113,44 @@ class LazyElasticsearchHandler extends AbstractProcessingHandler
         }
 
         return parent::getFormatter();
+    }
+
+    /**
+     * Runs a send operation while suppressing failures.
+     *
+     * Re-entrant calls (e.g. the Elasticsearch client's own error log looping
+     * back through consumer handlers) and calls made while the handler is
+     * suspended after a previous failure are dropped silently.
+     *
+     * @param callable(): mixed $operation
+     */
+    private function send(callable $operation): void
+    {
+        if ($this->sending || ($this->suspendedUntil !== null && $this->now() < $this->suspendedUntil)) {
+            return;
+        }
+
+        $this->sending = true;
+
+        try {
+            $operation();
+        } catch (Throwable $e) {
+            $this->suspendedUntil = $this->now() + $this->retryAfterSeconds;
+            $this->logger?->error(
+                sprintf('Failed to send logs to Elasticsearch, skipping it for %d seconds.', $this->retryAfterSeconds),
+                [
+                    'exception' => $e,
+                    'retry_after_seconds' => $this->retryAfterSeconds,
+                ],
+            );
+        } finally {
+            $this->sending = false;
+        }
+    }
+
+    private function now(): int
+    {
+        return $this->clock?->now()->getTimestamp() ?? time();
     }
 
     /**

@@ -43,6 +43,7 @@ class RoundRobinHttpClient implements ClientInterface
         ?ClientInterface $httpClient = null,
         ?LoggerInterface $logger = null,
         bool $sslVerification = true,
+        ?float $timeout = null,
     ) {
         $hosts = ElasticsearchConfig::normalizeHosts($hosts);
 
@@ -51,11 +52,18 @@ class RoundRobinHttpClient implements ClientInterface
         }
 
         $this->hosts = $hosts;
+        $options = [
+            'verify_peer' => $sslVerification,
+            'verify_host' => $sslVerification,
+        ];
+
+        if ($timeout !== null) {
+            $options['timeout'] = $timeout;
+            $options['max_duration'] = $timeout;
+        }
+
         $this->httpClient = $httpClient ?? new Psr18Client(
-            HttpClient::create([
-                'verify_peer' => $sslVerification,
-                'verify_host' => $sslVerification,
-            ]),
+            HttpClient::create($options),
         );
         $this->logger = $logger ?? new NullLogger();
 

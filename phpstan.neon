@@ -18,10 +18,6 @@ parameters:
     
     # Ignore specific errors if needed (defined in phpstan-baseline.neon)
     
-    # Check for missing type hints
-    checkMissingIterableValueType: true
-    checkGenericClassInNonGenericObjectType: true
-    
     # Report unmatched ignored errors
     reportUnmatchedIgnoredErrors: true
     
@@ -30,7 +26,7 @@ parameters:
     
     # Exclude patterns
     excludePaths:
-        - tests/bootstrap.php
+        - tests/bootstrap.php (?)
         - vendor/
     
     # Bleeding edge features (optional, for strictest analysis)

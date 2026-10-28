@@ -14,6 +14,7 @@ use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\UriInterface;
 use Psr\Log\NullLogger;
 use RuntimeException;
+use Throwable;
 
 final class RoundRobinHttpClientTest extends TestCase
 {
@@ -22,6 +23,16 @@ final class RoundRobinHttpClientTest extends TestCase
         $hosts = ['http://localhost:9200', 'http://localhost:9201'];
 
         $client = new RoundRobinHttpClient($hosts, null, new NullLogger());
+
+        self::assertSame($hosts, $client->getHosts());
+        self::assertSame(0, $client->getCurrentHostIndex());
+    }
+
+    public function testInitializationWithTimeout(): void
+    {
+        $hosts = ['http://localhost:9200'];
+
+        $client = new RoundRobinHttpClient($hosts, null, new NullLogger(), true, 1.5);
 
         self::assertSame($hosts, $client->getHosts());
         self::assertSame(0, $client->getCurrentHostIndex());
@@ -72,7 +83,7 @@ final class RoundRobinHttpClientTest extends TestCase
 
     public function testClientAcceptsInjectedHttpClient(): void
     {
-        $httpClient = $this->createMock(ClientInterface::class);
+        $httpClient = self::createStub(ClientInterface::class);
         $hosts = ['http://localhost:9200'];
 
         $client = new RoundRobinHttpClient($hosts, $httpClient, new NullLogger());
@@ -82,17 +93,17 @@ final class RoundRobinHttpClientTest extends TestCase
 
     public function testSendRequestAppliesHostToUri(): void
     {
-        $uri = $this->createMock(UriInterface::class);
+        $uri = self::createStub(UriInterface::class);
         $uri->method('withScheme')->willReturnSelf();
         $uri->method('withHost')->willReturnSelf();
         $uri->method('withPort')->willReturnSelf();
 
-        $request = $this->createMock(RequestInterface::class);
+        $request = self::createStub(RequestInterface::class);
         $request->method('getUri')->willReturn($uri);
         $request->method('withUri')->willReturnSelf();
         $request->method('getMethod')->willReturn('GET');
 
-        $response = $this->createMock(ResponseInterface::class);
+        $response = self::createStub(ResponseInterface::class);
         $response->method('getStatusCode')->willReturn(200);
 
         $httpClient = $this->createMock(ClientInterface::class);
@@ -113,17 +124,17 @@ final class RoundRobinHttpClientTest extends TestCase
 
     public function testSendRequestFailsOverToNextHost(): void
     {
-        $uri = $this->createMock(UriInterface::class);
+        $uri = self::createStub(UriInterface::class);
         $uri->method('withScheme')->willReturnSelf();
         $uri->method('withHost')->willReturnSelf();
         $uri->method('withPort')->willReturnSelf();
 
-        $request = $this->createMock(RequestInterface::class);
+        $request = self::createStub(RequestInterface::class);
         $request->method('getUri')->willReturn($uri);
         $request->method('withUri')->willReturnSelf();
         $request->method('getMethod')->willReturn('GET');
 
-        $response = $this->createMock(ResponseInterface::class);
+        $response = self::createStub(ResponseInterface::class);
         $response->method('getStatusCode')->willReturn(200);
 
         $exception = new class('Connection refused') extends RuntimeException implements ClientExceptionInterface {};
@@ -131,10 +142,15 @@ final class RoundRobinHttpClientTest extends TestCase
         $httpClient = $this->createMock(ClientInterface::class);
         $httpClient->expects($this->exactly(2))
             ->method('sendRequest')
-            ->willReturnOnConsecutiveCalls(
-                $this->throwException($exception),
-                $response,
-            );
+            ->willReturnCallback(static function () use ($exception, $response) {
+                static $calls = [$exception, $response];
+                $result = array_shift($calls);
+                if ($result instanceof Throwable) {
+                    throw $result;
+                }
+
+                return $result;
+            });
 
         $client = new RoundRobinHttpClient(
             ['http://localhost:9200', 'http://localhost:9201'],
@@ -150,12 +166,12 @@ final class RoundRobinHttpClientTest extends TestCase
 
     public function testSendRequestThrowsWhenAllHostsFail(): void
     {
-        $uri = $this->createMock(UriInterface::class);
+        $uri = self::createStub(UriInterface::class);
         $uri->method('withScheme')->willReturnSelf();
         $uri->method('withHost')->willReturnSelf();
         $uri->method('withPort')->willReturnSelf();
 
-        $request = $this->createMock(RequestInterface::class);
+        $request = self::createStub(RequestInterface::class);
         $request->method('getUri')->willReturn($uri);
         $request->method('withUri')->willReturnSelf();
         $request->method('getMethod')->willReturn('GET');
@@ -199,20 +215,20 @@ final class RoundRobinHttpClientTest extends TestCase
 
     public function testSendRequestAdvancesHostIndex(): void
     {
-        $uri = $this->createMock(UriInterface::class);
+        $uri = self::createStub(UriInterface::class);
         $uri->method('withScheme')->willReturnSelf();
         $uri->method('withHost')->willReturnSelf();
         $uri->method('withPort')->willReturnSelf();
 
-        $request = $this->createMock(RequestInterface::class);
+        $request = self::createStub(RequestInterface::class);
         $request->method('getUri')->willReturn($uri);
         $request->method('withUri')->willReturnSelf();
         $request->method('getMethod')->willReturn('GET');
 
-        $response = $this->createMock(ResponseInterface::class);
+        $response = self::createStub(ResponseInterface::class);
         $response->method('getStatusCode')->willReturn(200);
 
-        $httpClient = $this->createMock(ClientInterface::class);
+        $httpClient = self::createStub(ClientInterface::class);
         $httpClient->method('sendRequest')->willReturn($response);
 
         $client = new RoundRobinHttpClient(
